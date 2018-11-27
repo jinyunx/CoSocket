@@ -30,10 +30,19 @@ set(CMAKE_USE_RELATIVE_PATHS TRUE)
 set(EXECUTABLE_OUTPUT_PATH "${PROJECT_BINARY_DIR}/bin")
 set(LIBRARY_OUTPUT_PATH "${PROJECT_BINARY_DIR}/lib")
 
-add_executable("${PROJECT_NAME}"
-    "src/${PROJECT_NAME}.cpp"
+add_executable(CoSocket
+    "src/CoSocket.cpp"
     )
 
-target_link_libraries("${PROJECT_NAME}"
+target_link_libraries("CoSocket"
+    pthread
+    )
+
+add_executable(coroutine_test
+    "3rd/coroutine_test.c"
+    "3rd/coroutine.c"
+    )
+
+target_link_libraries(coroutine_test
     pthread
     )
