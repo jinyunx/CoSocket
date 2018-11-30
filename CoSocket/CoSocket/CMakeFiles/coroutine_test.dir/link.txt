@@ -1,1 +1,0 @@
-/usr/bin/cc -Wall -Wextra -Wno-unused-parameter -O3 -g -DRELEASE -DNDEBUG  -Wl,-rpath=.:..:lib -rdynamic CMakeFiles/coroutine_test.dir/3rd/coroutine_test.c.o CMakeFiles/coroutine_test.dir/3rd/coroutine.c.o  -o bin/coroutine_test -lpthread 

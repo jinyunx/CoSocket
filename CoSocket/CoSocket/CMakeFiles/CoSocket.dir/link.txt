@@ -1,1 +1,0 @@
-/usr/bin/c++  -Wall -Wextra -Wno-unused-parameter -std=c++11 -O3 -g -DRELEASE -DNDEBUG  -Wl,-rpath=.:..:lib -rdynamic CMakeFiles/CoSocket.dir/src/CoSocket.cpp.o CMakeFiles/CoSocket.dir/src/Epoller.cpp.o CMakeFiles/CoSocket.dir/3rd/coroutine.c.o  -o bin/CoSocket -lpthread 
