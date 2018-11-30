@@ -1,0 +1,72 @@
+#include "Epoller.h"
+
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+Epoller::Epoller(const HandlerFunc &handler)
+    : m_epollFd(::epoll_create1(EPOLL_CLOEXEC)),
+      m_events(kInitEventListSize),
+      m_handler(handler)
+{
+    if (m_epollFd < 0)
+    {
+        printf("Create epoll fd failed\n");
+        exit(1);
+    }
+}
+
+Epoller::~Epoller()
+{
+    ::close(m_epollFd);
+}
+
+void Epoller::Poll(int timeoutMs)
+{
+    int numEvents = ::epoll_wait(m_epollFd, &m_events[0],
+                                 static_cast<int>(m_events.size()),
+                                 timeoutMs);
+    if (numEvents < 0)
+    {
+        printf("Something wrong is happended\n");
+        exit(1);
+    }
+
+    for (int i = 0; i < numEvents; ++i)
+        m_handler(m_events[i].data.fd, m_events[i].events);
+}
+
+bool Epoller::Update(int fd, uint32_t events)
+{
+    int operation = EPOLL_CTL_MOD;
+    if (!events)
+        operation = EPOLL_CTL_DEL;
+    else if (m_fdEvents.find(fd) == m_fdEvents.end())
+        operation = EPOLL_CTL_ADD;
+
+    if (EpollCtl(operation, fd, events))
+    {
+        if (events)
+            m_fdEvents[fd] = events;
+        else
+            m_fdEvents.erase(fd);
+        return true;
+    }
+    return false;
+}
+
+bool Epoller::EpollCtl(int operation, int fd, uint32_t events)
+{
+    struct epoll_event event;
+    memset(&event, 0, sizeof event);
+    event.events = events;
+    event.data.fd = fd;
+    if (::epoll_ctl(m_epollFd, operation, fd, &event) < 0)
+    {
+        printf("epoll_ctl failed, operation: %d, fd: %d\n", operation, fd);
+        return false;
+    }
+    return true;
+}
+

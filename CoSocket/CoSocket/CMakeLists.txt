@@ -32,6 +32,8 @@ set(LIBRARY_OUTPUT_PATH "${PROJECT_BINARY_DIR}/lib")
 
 add_executable(CoSocket
     "src/CoSocket.cpp"
+    "src/Epoller.cpp"
+    "3rd/coroutine.c"
     )
 
 target_link_libraries("CoSocket"
@@ -46,3 +48,4 @@ add_executable(coroutine_test
 target_link_libraries(coroutine_test
     pthread
     )
+
