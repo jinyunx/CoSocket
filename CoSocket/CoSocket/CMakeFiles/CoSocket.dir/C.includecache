@@ -1,0 +1,30 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/root/onexie/cppDev/CoSocket/CoSocket/CoSocket/3rd/coroutine.c
+coroutine.h
+/root/onexie/cppDev/CoSocket/CoSocket/CoSocket/3rd/coroutine.h
+stdio.h
+-
+stdlib.h
+-
+assert.h
+-
+stddef.h
+-
+string.h
+-
+stdint.h
+-
+sys/ucontext.h
+-
+ucontext.h
+-
+
+/root/onexie/cppDev/CoSocket/CoSocket/CoSocket/3rd/coroutine.h
+

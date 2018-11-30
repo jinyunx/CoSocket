@@ -61,6 +61,8 @@ void CoSocket::Sleep(int64_t ms)
     ::read(timerfd, &num, sizeof num);
 
     m_epoller->Update(timerfd, 0);
+    m_coIdMap.erase(CoKey(timerfd, EPOLLIN));
+    ::close(timerfd);
 }
 
 void CoSocket::InterCoFunc(struct schedule *s, void *ud)

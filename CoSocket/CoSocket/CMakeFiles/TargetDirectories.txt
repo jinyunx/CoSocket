@@ -1,0 +1,4 @@
+/root/onexie/cppDev/CoSocket/CoSocket/CoSocket/CMakeFiles/rebuild_cache.dir
+/root/onexie/cppDev/CoSocket/CoSocket/CoSocket/CMakeFiles/edit_cache.dir
+/root/onexie/cppDev/CoSocket/CoSocket/CoSocket/CMakeFiles/coroutine_test.dir
+/root/onexie/cppDev/CoSocket/CoSocket/CoSocket/CMakeFiles/CoSocket.dir
