@@ -12,12 +12,12 @@ Epoller::Epoller(const HandlerFunc &handler)
 {
     if (m_epollFd < 0)
     {
-        printf("Create epoll fd failed\n");
+        printf("epoll_create1 error: %s\n", strerror(errno));
         exit(1);
     }
 }
 
-Epoller::~Epoller()
+Epoller::~Epoller() 
 {
     ::close(m_epollFd);
 }
@@ -29,12 +29,18 @@ void Epoller::Poll(int timeoutMs)
                                  timeoutMs);
     if (numEvents < 0)
     {
-        printf("Something wrong is happended\n");
+        if (errno == EINTR)
+            return;
+
+        printf("epoll_wait error: %s\n", strerror(errno));
         exit(1);
     }
 
     for (int i = 0; i < numEvents; ++i)
         m_handler(m_events[i].data.fd, m_events[i].events);
+
+    if (static_cast<std::size_t>(numEvents) == m_events.size())
+        m_events.resize(numEvents * 2);
 }
 
 bool Epoller::Update(int fd, uint32_t events)
@@ -64,7 +70,8 @@ bool Epoller::EpollCtl(int operation, int fd, uint32_t events)
     event.data.fd = fd;
     if (::epoll_ctl(m_epollFd, operation, fd, &event) < 0)
     {
-        printf("epoll_ctl failed, operation: %d, fd: %d\n", operation, fd);
+        printf("epoll_ctl failed, operation: %d, fd: %d, error: %s\n",
+               operation, fd, strerror(errno));
         return false;
     }
     return true;
