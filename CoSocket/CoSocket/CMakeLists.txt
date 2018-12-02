@@ -33,6 +33,8 @@ set(LIBRARY_OUTPUT_PATH "${PROJECT_BINARY_DIR}/lib")
 add_executable(CoSocket
     "src/CoSocket.cpp"
     "src/Epoller.cpp"
+    "src/Timer.cpp"
+    "src/CoSocket_test.cpp"
     "3rd/coroutine.c"
     )
 

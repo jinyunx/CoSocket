@@ -43,48 +43,36 @@ int CoSocket::NewCoroutine(const CoFunction &func)
     return coId;
 }
 
-void CoSocket::Sleep(int64_t ms)
+ssize_t CoSocket::Read(int fd, char *buffer, size_t size)
 {
-    int timerfd = ::timerfd_create(CLOCK_MONOTONIC,
-                                   TFD_NONBLOCK | TFD_CLOEXEC);
-    if (timerfd < 0)
+    ssize_t ret = ::read(fd, buffer, size);
+    if (ret >= 0)
     {
-        printf("timerfd_create failed, error: %s\n",
-               strerror(errno));
-        return;
+        return ret;
+    }
+    else
+    {
+        if (errno != EAGAIN && errno != EWOULDBLOCK)
+            return errno;
     }
 
-    struct itimerspec newValue;
-    struct itimerspec oldValue;
-    memset(&newValue, 0, sizeof newValue);
-    memset(&oldValue, 0, sizeof oldValue);
-    newValue.it_value.tv_sec = ms / 1000;
-    newValue.it_value.tv_nsec = ms % 1000 * 1000000;
-    if (::timerfd_settime(timerfd, 0, &newValue, &oldValue) < 0)
-    {
-        printf("timerfd_settime failed, error: %s\n",
-               strerror(errno));
-        ::close(timerfd);
-        return;
-    }
+    if (!SaveToCoIdMap(CoKey(fd, EPOLLIN)))
+        return -1;
 
-    if (!m_epoller->Update(timerfd, EPOLLIN))
-        return;
-
-    if (!SaveToCoIdMap(CoKey(timerfd, EPOLLIN)))
+    // TODO: Update function internal should use |
+    if (!m_epoller->Update(fd, EPOLLIN))
     {
-        m_epoller->Update(timerfd, 0);
-        return;
+        m_coIdMap.erase(CoKey(fd, EPOLLIN));
+        return -1;
     }
 
     coroutine_yield(m_schedule);
 
-    uint64_t num = 0;
-    ::read(timerfd, &num, sizeof num);
+    ret = ::read(fd, buffer, size);
 
-    m_coIdMap.erase(CoKey(timerfd, EPOLLIN));
-    m_epoller->Update(timerfd, 0);
-    ::close(timerfd);
+    m_epoller->Update(fd, 0);
+    m_coIdMap.erase(CoKey(fd, EPOLLIN));
+    return ret;
 }
 
 void CoSocket::InterCoFunc(struct schedule *s, void *ud)
@@ -119,28 +107,5 @@ void CoSocket::EventHandler(int fd, uint32_t events)
     }
 
     coroutine_resume(m_schedule, it->second);
-}
-
-CoSocket coSocket;
-
-void func(int index)
-{
-    for (int i = 0; i < 10000; ++i)
-    {
-        printf("Sleep func %d\n", index);
-        coSocket.Sleep(2000);
-    }
-}
-
-int main()
-{
-    coSocket.NewCoroutine(std::bind(&func, 1));
-    coSocket.NewCoroutine(std::bind(&func, 2));
-    coSocket.NewCoroutine(std::bind(&func, 3));
-    coSocket.NewCoroutine(std::bind(&func, 4));
-    coSocket.NewCoroutine(std::bind(&func, 5));
-
-    coSocket.Run();
-    return 0;
 }
 

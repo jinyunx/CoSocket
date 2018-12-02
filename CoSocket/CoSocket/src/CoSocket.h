@@ -18,7 +18,7 @@ public:
 
     void Run();
     int NewCoroutine(const CoFunction &func);
-    void Sleep(int64_t ms);
+    ssize_t Read(int fd, char *buffer, size_t size);
 
 private:
     struct CoKey
