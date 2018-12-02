@@ -4,6 +4,8 @@
 #include <functional>
 #include <memory>
 #include <map>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 struct schedule;
 class Epoller;
@@ -18,31 +20,20 @@ public:
 
     void Run();
     int NewCoroutine(const CoFunction &func);
+
+    int Connect(int fd, const struct sockaddr *addr,
+                socklen_t addrlen);
     ssize_t Read(int fd, char *buffer, size_t size);
+    ssize_t Write(int fd, const char *buffer, size_t size);
 
 private:
-    struct CoKey
-    {
-        int fd;
-        uint32_t events;
+    typedef std::map<int, int> CoIdMap;
 
-        CoKey(int f = 0, uint32_t e = 0)
-            : fd(f), events(e)
-        {
-        }
-
-        bool operator < (const CoKey &other) const
-        {
-            if (fd < other.fd)
-                return true;
-            return events < other.events;
-        }
-    };
-
-    typedef std::map<CoKey, int> CoIdMap;
-
+    int AddEventAndYield(int fd, uint32_t events);
+    void DeleteEvent(int fd);
     static void InterCoFunc(struct schedule *s, void *ud);
-    bool SaveToCoIdMap(const CoKey &coKey);
+    bool SaveToCoIdMap(int fd);
+    void EraseCoIdMap(int fd);
     void EventHandler(int fd, uint32_t events);
 
     CoIdMap m_coIdMap;

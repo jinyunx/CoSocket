@@ -34,6 +34,7 @@ add_executable(CoSocket
     "src/CoSocket.cpp"
     "src/Epoller.cpp"
     "src/Timer.cpp"
+    "src/TcpClient.cpp"
     "src/CoSocket_test.cpp"
     "3rd/coroutine.c"
     )

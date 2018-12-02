@@ -43,36 +43,89 @@ int CoSocket::NewCoroutine(const CoFunction &func)
     return coId;
 }
 
+int CoSocket::Connect(int fd, const struct sockaddr *addr,
+                      socklen_t addrlen)
+{
+    int ret = ::connect(fd, addr, addrlen);
+    if (ret == 0 || errno == EISCONN)
+        return 0;
+
+    if (errno != EAGAIN &&
+        errno != EINPROGRESS &&
+        errno != EINTR)
+        return errno;
+
+    AddEventAndYield(fd, EPOLLOUT | EPOLLERR);
+    socklen_t len = sizeof ret;
+    if (::getsockopt(fd, SOL_SOCKET, SO_ERROR, &ret, &len) < 0)
+    {
+        printf("getsockopt fail, error: %s\n",
+               strerror(errno));
+        ret = -1;
+    }
+    DeleteEvent(fd);
+    return ret;
+}
+
 ssize_t CoSocket::Read(int fd, char *buffer, size_t size)
 {
     ssize_t ret = ::read(fd, buffer, size);
     if (ret >= 0)
-    {
         return ret;
-    }
-    else
-    {
-        if (errno != EAGAIN && errno != EWOULDBLOCK)
-            return errno;
-    }
 
-    if (!SaveToCoIdMap(CoKey(fd, EPOLLIN)))
+    if (errno != EAGAIN &&
+        errno != EWOULDBLOCK &&
+        errno != EINTR)
+        return errno;
+
+    AddEventAndYield(fd, EPOLLIN | EPOLLERR);
+    ret = ::read(fd, buffer, size);
+    DeleteEvent(fd);
+    return ret;
+}
+
+ssize_t CoSocket::Write(int fd, const char *buffer, size_t size)
+{
+    if (size == 0 || !buffer)
+        return 0;
+
+    ssize_t ret = ::write(fd, buffer, size);
+    if (ret >= 0)
+        return ret;
+
+    if (errno != EISCONN &&
+        errno != EWOULDBLOCK &&
+        errno != EINTR)
+        return errno;
+
+    AddEventAndYield(fd, EPOLLOUT | EPOLLERR);
+    ret = ::write(fd, buffer, size);
+    DeleteEvent(fd);
+    return ret;
+}
+
+int CoSocket::AddEventAndYield(int fd, uint32_t events)
+{
+    if (!SaveToCoIdMap(fd))
         return -1;
 
-    // TODO: Update function internal should use |
-    if (!m_epoller->Update(fd, EPOLLIN))
+    // TODO:
+    // Not support read and write for the same fd
+    // at the same time
+    if (!m_epoller->Update(fd, events))
     {
-        m_coIdMap.erase(CoKey(fd, EPOLLIN));
+        EraseCoIdMap(fd);
         return -1;
     }
 
     coroutine_yield(m_schedule);
+    return 0;
+}
 
-    ret = ::read(fd, buffer, size);
-
+void CoSocket::DeleteEvent(int fd)
+{
     m_epoller->Update(fd, 0);
-    m_coIdMap.erase(CoKey(fd, EPOLLIN));
-    return ret;
+    EraseCoIdMap(fd);
 }
 
 void CoSocket::InterCoFunc(struct schedule *s, void *ud)
@@ -83,7 +136,7 @@ void CoSocket::InterCoFunc(struct schedule *s, void *ud)
     if (func) (*func)();
 }
 
-bool CoSocket::SaveToCoIdMap(const CoKey &coKey)
+bool CoSocket::SaveToCoIdMap(int coKey)
 {
     CoIdMap::const_iterator it = m_coIdMap.find(coKey);
     if (it != m_coIdMap.end())
@@ -96,9 +149,14 @@ bool CoSocket::SaveToCoIdMap(const CoKey &coKey)
     return true;
 }
 
+void CoSocket::EraseCoIdMap(int fd)
+{
+    m_coIdMap.erase(fd);
+}
+
 void CoSocket::EventHandler(int fd, uint32_t events)
 {
-    CoIdMap::const_iterator it = m_coIdMap.find(CoKey(fd, events));
+    CoIdMap::const_iterator it = m_coIdMap.find(fd);
     if (it == m_coIdMap.end())
     {
         printf("Cannot find the event handler,"
