@@ -53,7 +53,7 @@ int CoSocket::Connect(int fd, const struct sockaddr *addr,
     if (errno != EAGAIN &&
         errno != EINPROGRESS &&
         errno != EINTR)
-        return errno;
+        return -errno;
 
     AddEventAndYield(fd, EPOLLOUT | EPOLLERR);
     socklen_t len = sizeof ret;
@@ -61,10 +61,10 @@ int CoSocket::Connect(int fd, const struct sockaddr *addr,
     {
         printf("getsockopt fail, error: %s\n",
                strerror(errno));
-        ret = -1;
+        ret = errno;
     }
     DeleteEvent(fd);
-    return ret;
+    return -ret;
 }
 
 ssize_t CoSocket::Read(int fd, char *buffer, size_t size)
@@ -76,11 +76,13 @@ ssize_t CoSocket::Read(int fd, char *buffer, size_t size)
     if (errno != EAGAIN &&
         errno != EWOULDBLOCK &&
         errno != EINTR)
-        return errno;
+        return -errno;
 
     AddEventAndYield(fd, EPOLLIN | EPOLLERR);
     ret = ::read(fd, buffer, size);
     DeleteEvent(fd);
+    if (ret == -1)
+        return -errno;
     return ret;
 }
 
@@ -93,14 +95,16 @@ ssize_t CoSocket::Write(int fd, const char *buffer, size_t size)
     if (ret >= 0)
         return ret;
 
-    if (errno != EISCONN &&
+    if (errno != EAGAIN &&
         errno != EWOULDBLOCK &&
         errno != EINTR)
-        return errno;
+        return -errno;
 
     AddEventAndYield(fd, EPOLLOUT | EPOLLERR);
     ret = ::write(fd, buffer, size);
     DeleteEvent(fd);
+    if (ret == -1)
+        return -errno;
     return ret;
 }
 
@@ -112,7 +116,7 @@ int CoSocket::AddEventAndYield(int fd, uint32_t events)
     // TODO:
     // Not support read and write for the same fd
     // at the same time
-    if (!m_epoller->Update(fd, events))
+    if (m_epoller->Update(fd, events) != 0)
     {
         EraseCoIdMap(fd);
         return -1;

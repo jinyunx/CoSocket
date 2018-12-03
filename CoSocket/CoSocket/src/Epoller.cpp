@@ -43,26 +43,23 @@ void Epoller::Poll(int timeoutMs)
         m_events.resize(numEvents * 2);
 }
 
-bool Epoller::Update(int fd, uint32_t events)
+int Epoller::Update(int fd, uint32_t events)
 {
-    int operation = EPOLL_CTL_MOD;
+    int operation = EPOLL_CTL_ADD;
     if (!events)
         operation = EPOLL_CTL_DEL;
-    else if (m_fdEvents.find(fd) == m_fdEvents.end())
-        operation = EPOLL_CTL_ADD;
 
-    if (EpollCtl(operation, fd, events))
-    {
-        if (events)
-            m_fdEvents[fd] = events;
-        else
-            m_fdEvents.erase(fd);
-        return true;
-    }
-    return false;
+    int ret = EpollCtl(operation, fd, events);
+
+    if (ret == ENOENT && operation == EPOLL_CTL_DEL)
+        ret = 0;
+    else if (ret == EEXIST && operation == EPOLL_CTL_ADD)
+        ret = EpollCtl(EPOLL_CTL_MOD, fd, events);
+
+    return -ret;
 }
 
-bool Epoller::EpollCtl(int operation, int fd, uint32_t events)
+int Epoller::EpollCtl(int operation, int fd, uint32_t events)
 {
     struct epoll_event event;
     memset(&event, 0, sizeof event);
@@ -72,8 +69,8 @@ bool Epoller::EpollCtl(int operation, int fd, uint32_t events)
     {
         printf("epoll_ctl failed, operation: %d, fd: %d, error: %s\n",
                operation, fd, strerror(errno));
-        return false;
+        return errno;
     }
-    return true;
+    return 0;
 }
 
