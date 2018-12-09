@@ -30,12 +30,14 @@ set(CMAKE_USE_RELATIVE_PATHS TRUE)
 set(EXECUTABLE_OUTPUT_PATH "${PROJECT_BINARY_DIR}/bin")
 set(LIBRARY_OUTPUT_PATH "${PROJECT_BINARY_DIR}/lib")
 
-add_executable(CoSocket
+### Main library
+add_library(CoSocket
     "src/CoSocket.cpp"
     "src/Epoller.cpp"
     "src/Timer.cpp"
     "src/TcpClient.cpp"
-    "src/CoSocket_test.cpp"
+    "src/TcpConnector.cpp"
+    "src/TcpServer.cpp"
     "3rd/coroutine.c"
     )
 
@@ -43,6 +45,16 @@ target_link_libraries("CoSocket"
     pthread
     )
 
+### Simple test
+add_executable(CoSocket_test
+    "src/CoSocket_test.cpp"
+    )
+
+target_link_libraries(CoSocket_test
+    CoSocket
+    )
+
+### Pure coroutine test
 add_executable(coroutine_test
     "3rd/coroutine_test.c"
     "3rd/coroutine.c"
@@ -50,5 +62,14 @@ add_executable(coroutine_test
 
 target_link_libraries(coroutine_test
     pthread
+    )
+
+### Echo server
+add_executable(Echo
+    "example/Echo.cpp"
+    )
+
+target_link_libraries(Echo
+    CoSocket
     )
 

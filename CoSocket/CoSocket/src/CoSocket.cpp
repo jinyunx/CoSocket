@@ -27,11 +27,26 @@ CoSocket::~CoSocket()
 void CoSocket::Run()
 {
     while(1)
+    {
+        while (!m_coFuncList.empty())
+        {
+            CoFunction func = m_coFuncList.front();
+            m_coFuncList.pop_front();
+            NewCoroutine(func);
+        }
+
         m_epoller->Poll(-1);
+    }
 }
 
-int CoSocket::NewCoroutine(const CoFunction &func)
+void CoSocket::NewCoroutine(const CoFunction &func)
 {
+    if (coroutine_running(m_schedule) != -1)
+    {
+        m_coFuncList.push_back(func);
+        return;
+    }
+
     int coId = coroutine_new(m_schedule, &InterCoFunc,
                              (void *)&func);
 
@@ -39,8 +54,6 @@ int CoSocket::NewCoroutine(const CoFunction &func)
         printf("coroutine_new failed\n");
     else
         coroutine_resume(m_schedule, coId);
-
-    return coId;
 }
 
 int CoSocket::Connect(int fd, const struct sockaddr *addr,
@@ -65,6 +78,28 @@ int CoSocket::Connect(int fd, const struct sockaddr *addr,
     }
     DeleteEvent(fd);
     return -ret;
+}
+
+int CoSocket::Accept(int fd, struct sockaddr *addr,
+                     socklen_t *addrlen)
+{
+    int ret = ::accept(fd, addr, addrlen);
+    if (ret >= 0)
+        return ret;
+
+    if (errno != EAGAIN &&
+        errno != EWOULDBLOCK &&
+        errno != ECONNABORTED &&
+        errno != EINTR &&
+        errno != ETIMEDOUT)
+        return -errno;
+
+    AddEventAndYield(fd, EPOLLIN | EPOLLERR);
+    ret = ::accept(fd, addr, addrlen);
+    DeleteEvent(fd);
+    if (ret == -1)
+        return -errno;
+    return ret;
 }
 
 ssize_t CoSocket::Read(int fd, char *buffer, size_t size)
