@@ -1,6 +1,6 @@
-#include "../src/TcpServer.h"
-#include "../src/CoSocket.h"
-#include "../src/Timer.h"
+#include "TcpServer.h"
+#include "CoSocket.h"
+#include "Timer.h"
 #include "unistd.h"
 #include <vector>
 
@@ -18,7 +18,6 @@ void HandleRequest(TcpServer::ConnectorPtr &connector)
         ret = connector->Write(buffer.data(), ret);
         if (ret < 0)
             return;
-    exit(1);
     }
 }
 
@@ -32,4 +31,3 @@ int main()
     echo.MonitorSlavesLoop();
     return 0;
 }
-

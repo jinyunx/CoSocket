@@ -3,6 +3,7 @@ project(CoSocket)
 cmake_minimum_required(VERSION 2.6)
 
 include_directories("${PROJECT_SOURCE_DIR}/3rd")
+include_directories("${PROJECT_SOURCE_DIR}/src")
 
 set(CMAKE_C_FLAGS
     "-Wall -Wextra -Wno-unused-parameter")
@@ -66,10 +67,18 @@ target_link_libraries(coroutine_test
 
 ### Echo server
 add_executable(Echo
-    "example/Echo.cpp"
+    "example/echo/Echo.cpp"
     )
 
 target_link_libraries(Echo
     CoSocket
     )
 
+### Echo client
+add_executable(EchoClient
+    "example/echo/EchoClient.cpp"
+    )
+
+target_link_libraries(EchoClient
+    CoSocket
+    )
