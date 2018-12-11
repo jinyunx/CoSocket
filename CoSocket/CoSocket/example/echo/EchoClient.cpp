@@ -1,6 +1,7 @@
 #include "CoSocket.h"
 #include "Timer.h"
 #include "TcpClient.h"
+#include <string.h>
 
 void func(CoSocket &coSocket)
 {
@@ -29,7 +30,7 @@ void func(CoSocket &coSocket)
 int main()
 {
     CoSocket coSocket;
-    coSocket.NewCoroutine(std::bind(&func, coSocket));
+    coSocket.NewCoroutine(std::bind(&func, std::ref(coSocket)));
     coSocket.Run();
     return 0;
 }
