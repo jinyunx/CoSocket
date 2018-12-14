@@ -13,7 +13,7 @@ public:
     typedef std::shared_ptr<TcpConnector> ConnectorPtr;
 
     typedef std::function<bool (void)> HandleInitFunc;
-    typedef std::function<void (ConnectorPtr &)> HandleRequest;
+    typedef std::function<void (ConnectorPtr)> HandleRequest;
     typedef std::function<void (void)> HandleFiniFunc;
 
     TcpServer(const std::string &ip,

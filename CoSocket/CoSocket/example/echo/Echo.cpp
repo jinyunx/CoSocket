@@ -4,7 +4,7 @@
 #include "unistd.h"
 #include <vector>
 
-void HandleRequest(TcpServer::ConnectorPtr &connector)
+void HandleRequest(TcpServer::ConnectorPtr connector)
 {
     printf("My PID is: %d\n", getpid());
 

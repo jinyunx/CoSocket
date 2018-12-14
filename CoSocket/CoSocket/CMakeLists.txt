@@ -42,10 +42,6 @@ add_library(CoSocket
     "3rd/coroutine.c"
     )
 
-target_link_libraries("CoSocket"
-    pthread
-    )
-
 ### Simple test
 add_executable(CoSocket_test
     "src/CoSocket_test.cpp"
@@ -80,5 +76,14 @@ add_executable(EchoClient
     )
 
 target_link_libraries(EchoClient
+    CoSocket
+    )
+
+### Signal pipe test
+add_executable(SigPipeTest
+    "example/sigpipe_test/SigPipeTest.cpp"
+    )
+
+target_link_libraries(SigPipeTest
     CoSocket
     )

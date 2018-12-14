@@ -2,6 +2,7 @@
 #include "Epoller.h"
 
 #include <sys/timerfd.h>
+#include <signal.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -9,6 +10,20 @@ extern "C"
 {
 #include "../3rd/coroutine.h"
 }
+
+namespace 
+{
+class IgnoreSigPipe
+{
+public:
+    IgnoreSigPipe()
+    {
+        ::signal(SIGPIPE, SIG_IGN);
+    }
+};
+
+IgnoreSigPipe ignoreSigPipe;
+} // namespace
 
 CoSocket::CoSocket()
     : m_schedule(coroutine_open()),
