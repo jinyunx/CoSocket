@@ -39,7 +39,7 @@ add_library(CoSocket
     "src/TcpClient.cpp"
     "src/TcpConnector.cpp"
     "src/TcpServer.cpp"
-    "3rd/coroutine.c"
+    "3rd/coroutine/coroutine.c"
     )
 
 ### Simple test
@@ -53,8 +53,8 @@ target_link_libraries(CoSocket_test
 
 ### Pure coroutine test
 add_executable(coroutine_test
-    "3rd/coroutine_test.c"
-    "3rd/coroutine.c"
+    "3rd/coroutine/coroutine_test.c"
+    "3rd/coroutine/coroutine.c"
     )
 
 target_link_libraries(coroutine_test

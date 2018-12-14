@@ -8,7 +8,7 @@
 
 extern "C"
 {
-#include "../3rd/coroutine.h"
+#include "coroutine/coroutine.h"
 }
 
 namespace 
