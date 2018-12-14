@@ -9,6 +9,8 @@ case "$1" in
         rm -f cmake_install.cmake
         rm -f Makefile
         rm -rf CMakeFiles
+        rm -rf bin
+        rm -rf lib
         exit 0
         ;;
 esac
