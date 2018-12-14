@@ -3,7 +3,7 @@ project(CoSocket)
 cmake_minimum_required(VERSION 2.6)
 
 include_directories("${PROJECT_SOURCE_DIR}/3rd")
-include_directories("${PROJECT_SOURCE_DIR}/src")
+include_directories("${PROJECT_SOURCE_DIR}/net")
 
 set(CMAKE_C_FLAGS
     "-Wall -Wextra -Wno-unused-parameter")
@@ -33,18 +33,18 @@ set(LIBRARY_OUTPUT_PATH "${PROJECT_BINARY_DIR}/lib")
 
 ### Main library
 add_library(CoSocket
-    "src/CoSocket.cpp"
-    "src/Epoller.cpp"
-    "src/Timer.cpp"
-    "src/TcpClient.cpp"
-    "src/TcpConnector.cpp"
-    "src/TcpServer.cpp"
+    "net/CoSocket.cpp"
+    "net/Epoller.cpp"
+    "net/Timer.cpp"
+    "net/TcpClient.cpp"
+    "net/TcpConnector.cpp"
+    "net/TcpServer.cpp"
     "3rd/coroutine/coroutine.c"
     )
 
 ### Simple test
 add_executable(CoSocket_test
-    "src/CoSocket_test.cpp"
+    "net/CoSocket_test.cpp"
     )
 
 target_link_libraries(CoSocket_test
