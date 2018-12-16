@@ -84,6 +84,7 @@ int CoSocket::Connect(int fd, const struct sockaddr *addr,
         return -errno;
 
     AddEventAndYield(fd, EPOLLOUT | EPOLLERR);
+    ret = 0;
     socklen_t len = sizeof ret;
     if (::getsockopt(fd, SOL_SOCKET, SO_ERROR, &ret, &len) < 0)
     {

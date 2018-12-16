@@ -87,3 +87,20 @@ add_executable(SigPipeTest
 target_link_libraries(SigPipeTest
     CoSocket
     )
+
+### Throughput test
+add_executable(ThroughputServer
+    "example/throughput/ThroughputServer.cpp"
+    )
+
+target_link_libraries(ThroughputServer
+    CoSocket
+    )
+
+add_executable(ThroughputClient
+    "example/throughput/ThroughputClient.cpp"
+    )
+
+target_link_libraries(ThroughputClient
+    CoSocket
+    )

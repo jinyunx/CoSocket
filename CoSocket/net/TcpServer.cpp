@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <string.h>
 
 TcpServer::TcpServer(const std::string &ip,
@@ -109,6 +110,9 @@ void TcpServer::DoAccept()
         int sockFd = m_cs->Accept(m_listenFd, 0, 0);
         if (sockFd)
         {
+            int flags = fcntl(sockFd, F_GETFL, 0);
+            fcntl(sockFd, F_SETFL, flags | O_NONBLOCK);
+
             ConnectorPtr connector(new TcpConnector(*m_cs, sockFd));
             if (m_handleRequest)
                 SpawnOnNewRequest(connector);
@@ -123,4 +127,3 @@ void TcpServer::SpawnOnNewRequest(ConnectorPtr &connector)
     m_cs->NewCoroutine(std::bind(m_handleRequest,
                                  connector));
 }
-
