@@ -43,15 +43,6 @@ add_library(CoSocket
     "3rd/coroutine/coroutine.c"
     )
 
-### Simple test
-add_executable(CoSocket_test
-    "net/CoSocket_test.cpp"
-    )
-
-target_link_libraries(CoSocket_test
-    CoSocket
-    )
-
 ### Pure coroutine test
 add_executable(coroutine_test
     "3rd/coroutine/coroutine_test.c"
