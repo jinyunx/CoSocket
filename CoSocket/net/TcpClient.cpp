@@ -1,4 +1,6 @@
 #include "TcpClient.h"
+#include "SimpleLog.h"
+
 #include <string.h>
 #include <unistd.h>
 #include <netinet/in.h>
@@ -12,8 +14,8 @@ TcpClient::TcpClient(CoSocket &cs)
 {
     if (m_fd < 0)
     {
-        printf("socket failed, error: %s\n",
-               strerror(errno));
+        SIMPLE_LOG("socket failed, error: %s",
+                   strerror(errno));
         exit(1);
     }
 }

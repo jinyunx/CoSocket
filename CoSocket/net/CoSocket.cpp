@@ -1,5 +1,6 @@
 #include "CoSocket.h"
 #include "Epoller.h"
+#include "SimpleLog.h"
 
 #include <sys/timerfd.h>
 #include <signal.h>
@@ -66,7 +67,7 @@ void CoSocket::NewCoroutine(const CoFunction &func)
                              (void *)&func);
 
     if (coId < 0)
-        printf("coroutine_new failed\n");
+        SIMPLE_LOG("coroutine_new failed");
     else
         coroutine_resume(m_schedule, coId);
 }
@@ -88,8 +89,8 @@ int CoSocket::Connect(int fd, const struct sockaddr *addr,
     socklen_t len = sizeof ret;
     if (::getsockopt(fd, SOL_SOCKET, SO_ERROR, &ret, &len) < 0)
     {
-        printf("getsockopt fail, error: %s\n",
-               strerror(errno));
+        SIMPLE_LOG("getsockopt fail, error: %s",
+                   strerror(errno));
         ret = errno;
     }
     DeleteEvent(fd);
@@ -196,7 +197,7 @@ bool CoSocket::SaveToCoIdMap(int coKey)
     CoIdMap::const_iterator it = m_coIdMap.find(coKey);
     if (it != m_coIdMap.end())
     {
-        printf("Dumplicate co key is not allowed.\n");
+        SIMPLE_LOG("Dumplicate co key is not allowed.");
         return false;
     }
 
@@ -214,8 +215,8 @@ void CoSocket::EventHandler(int fd, uint32_t events)
     CoIdMap::const_iterator it = m_coIdMap.find(fd);
     if (it == m_coIdMap.end())
     {
-        printf("Cannot find the event handler,"
-               " fd: %d, events: %d\n", fd, events);
+        SIMPLE_LOG("Cannot find the event handler,"
+                   " fd: %d, events: %d", fd, events);
         return;
     }
 

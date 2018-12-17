@@ -189,7 +189,7 @@ int routine_read(int fd, char* buff, int size) {
         }
         return readin;
     } 
-    printf("routine[%d][%s]routine system ran out of order.\n", routine_id(), __func__);
+    SIMPLE_LOG("routine[%d][%s]routine system ran out of order.\n", routine_id(), __func__);
     return 0;
 }
 
@@ -218,7 +218,7 @@ int routine_write(int fd, char* buff, int size) {
         }
         return wrout;
     }
-    printf("routine[%d][%s]routine system ran out of order.\n", routine_id(), __func__);
+    SIMPLE_LOG("routine[%d][%s]routine system ran out of order.\n", routine_id(), __func__);
     return 0;
 }
 
@@ -245,7 +245,7 @@ int routine_nearest_timeout() {
 }
 
 void routine_resume_timeout() {
-    // printf("[epoll] process timeout\n");
+    // SIMPLE_LOG("[epoll] process timeout\n");
     if ( routinecenter.timeout_map.empty() ) {
         return;
     }
@@ -264,7 +264,7 @@ void routine_resume_timeout() {
 }
 
 void routine_resume_event(int n) {
-    // printf("[epoll] process event\n");
+    // SIMPLE_LOG("[epoll] process event\n");
     for (int i = 0; i < n; i++) {
         int rid = routinecenter.events[i].data.fd;
         resume(rid, routinecenter.events[i].events);
@@ -284,7 +284,7 @@ void routine_poll() {
 
     for (;;) {
         int n = epoll_wait (routinecenter.epoll_fd, routinecenter.events, MAX_EVENT_SIZE, routine_nearest_timeout());
-        // printf("[epoll] event_num:%d\n", n);
+        // SIMPLE_LOG("[epoll] event_num:%d\n", n);
         routine_resume_timeout();
         routine_resume_event(n);
     }
@@ -293,10 +293,10 @@ void routine_poll() {
 void echo_server_routine() {
     int conn_fd = routinecenter.routines[routine_id()].wait_fd;
     
-    printf("routine[%d][%s] server start. conn_fd: %d\n", routine_id(), __func__, conn_fd);
+    SIMPLE_LOG("routine[%d][%s] server start. conn_fd: %d\n", routine_id(), __func__, conn_fd);
 
     for (;;) {
-        printf("routine[%d][%s] loop start. conn_fd: %d\n", routine_id(), __func__, conn_fd);
+        SIMPLE_LOG("routine[%d][%s] loop start. conn_fd: %d\n", routine_id(), __func__, conn_fd);
         char buf[512] = {0};
         int n       = 0;
         
@@ -306,15 +306,15 @@ void echo_server_routine() {
             break;
         }
         buf[n] = '\0';
-        printf("routine[%d][%s] server read: %s", routine_id(), __func__, buf);
+        SIMPLE_LOG("routine[%d][%s] server read: %s", routine_id(), __func__, buf);
 
         unsigned int in_ts = time(NULL);
         routine_sleep(1);
         unsigned int out_ts= time(NULL);
 
         char obuf[512] = {0};
-        snprintf(obuf, sizeof(obuf), "%s rev_ts:%u sent_ts:%u\n", buf, in_ts, out_ts);
-        printf("routine[%d][%s] server write: %s", routine_id(), __func__, obuf);
+        snSIMPLE_LOG(obuf, sizeof(obuf), "%s rev_ts:%u sent_ts:%u\n", buf, in_ts, out_ts);
+        SIMPLE_LOG("routine[%d][%s] server write: %s", routine_id(), __func__, obuf);
 
         n = routine_write(conn_fd, obuf, strlen(obuf) + 1);
         if (n < 0) {
@@ -322,7 +322,7 @@ void echo_server_routine() {
             break;
         }
     }
-    printf("routine[%d][%s] server start. conn_fd: %d\n", routine_id(), __func__, conn_fd);
+    SIMPLE_LOG("routine[%d][%s] server start. conn_fd: %d\n", routine_id(), __func__, conn_fd);
 }
 
 void request_accept() {
@@ -336,7 +336,7 @@ void request_accept() {
             perror("getpeername error.");
             exit(-1);
         }
-        printf("routine[%d][%s] accept from %s conn_fd:%d\n", routine_id(), __func__, inet_ntoa(peer.sin_addr), fd);
+        SIMPLE_LOG("routine[%d][%s] accept from %s conn_fd:%d\n", routine_id(), __func__, inet_ntoa(peer.sin_addr), fd);
         set_nonblocking(fd);
         int rid = create( echo_server_routine );
         routinecenter.routines[rid].wait_fd = fd;
@@ -365,7 +365,7 @@ void bind_listen(unsigned short port) {
         perror("listen fail.");
         exit(-1);
     }
-    printf("routine[%d] listen bind at port: %u\n", routine_id(), port);
+    SIMPLE_LOG("routine[%d] listen bind at port: %u\n", routine_id(), port);
     set_nonblocking( listen_fd );
     int rid = create( request_accept );
     mod_event( listen_fd, EPOLLIN, EPOLL_CTL_ADD, rid );
@@ -373,7 +373,7 @@ void bind_listen(unsigned short port) {
 
 void timeout()
 {
-    printf("routine[%d] alarm fired\n", routine_id()); 
+    SIMPLE_LOG("routine[%d] alarm fired\n", routine_id()); 
     routine_delay_resume(create(timeout), 3);
 }
 

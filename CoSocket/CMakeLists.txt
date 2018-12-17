@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 2.6)
 
 include_directories("${PROJECT_SOURCE_DIR}/3rd")
 include_directories("${PROJECT_SOURCE_DIR}/net")
+include_directories("${PROJECT_SOURCE_DIR}/base")
 
 set(CMAKE_C_FLAGS
     "-Wall -Wextra -Wno-unused-parameter")

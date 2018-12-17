@@ -1,4 +1,5 @@
 #include "TcpServer.h"
+#include "SimpleLog.h"
 
 #include <sys/wait.h>
 #include <netinet/in.h>
@@ -28,8 +29,8 @@ TcpServer::TcpServer(const std::string &ip,
                reinterpret_cast<struct sockaddr *>(&addr),
                sizeof addr) < 0)
     {
-        printf("bind failed, ip: %s, port: %d, error: %s\n",
-               ip.c_str(), port, strerror(errno));
+        SIMPLE_LOG("bind failed, ip: %s, port: %d, error: %s",
+                   ip.c_str(), port, strerror(errno));
         exit(1);
     }
 }
@@ -44,8 +45,8 @@ bool TcpServer::ListenAndFork(int numSlaves,
 {
     if (listen(m_listenFd, SOMAXCONN) < 0)
     {
-        printf("listen failed, error: %s\n",
-               strerror(errno));
+        SIMPLE_LOG("listen failed, error: %s",
+                   strerror(errno));
         return false;
     }
 
@@ -88,7 +89,7 @@ bool TcpServer::ForkSlaves(int numSlaves, std::list<int> childIds)
         else if (ret > 0)
             childIds.push_back(ret);
         else
-            printf("fork error: %s\n", strerror(errno));
+            SIMPLE_LOG("fork error: %s", strerror(errno));
     }
 
     m_numSlaveRunning += childIds.size();

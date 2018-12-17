@@ -1,6 +1,7 @@
 #include "CoSocket.h"
 #include "Timer.h"
 #include "TcpClient.h"
+#include "SimpleLog.h"
 #include <string.h>
 
 void func(CoSocket &coSocket)
@@ -16,13 +17,13 @@ void func(CoSocket &coSocket)
     {
         sprintf(buffer, "echo test: %d", ++i);
         ssize_t size = tcpClient.Write(buffer, strlen(buffer));
-        printf("%d has been sent:\n%s\n", static_cast<int>(size),
-               buffer);
+        SIMPLE_LOG("%d has been sent:%s", static_cast<int>(size),
+                   buffer);
 
         size = tcpClient.Read(buffer, sizeof buffer - 1);
         buffer[size] = '\0';
-        printf("%d has been read:\n%s\n", static_cast<int>(size),
-               buffer);
+        SIMPLE_LOG("%d has been read:%s", static_cast<int>(size),
+                   buffer);
         timer.Wait(2000);
     }
 }

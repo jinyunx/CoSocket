@@ -1,12 +1,13 @@
 #include "TcpServer.h"
 #include "CoSocket.h"
 #include "Timer.h"
-#include "unistd.h"
+#include "SimpleLog.h"
+#include <unistd.h>
 #include <vector>
 
 void HandleRequest(TcpServer::ConnectorPtr connector)
 {
-    printf("My PID is: %d\n", getpid());
+    SIMPLE_LOG("My PID is: %d", getpid());
 
     std::vector<char> buffer(1024);
     while(1)

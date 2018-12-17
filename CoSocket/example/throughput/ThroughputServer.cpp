@@ -1,5 +1,6 @@
 #include "CoSocket.h"
 #include "TcpServer.h"
+#include "SimpleLog.h"
 #include <vector>
 
 void RequestHandle(
@@ -12,8 +13,8 @@ void RequestHandle(
         ssize_t ret = connector->Read(buffer.data(), bufferSize);
         if (ret <= 0)
         {
-            printf("read failed, error: %zd, wret: %zd\n",
-                   ret, wret);
+            SIMPLE_LOG("read failed, error: %zd, wret: %zd",
+                       ret, wret);
             return;
         }
 
@@ -24,7 +25,7 @@ void RequestHandle(
             wret = connector->Write(buffer.data() + offset, left);
             if (wret < 0)
             {
-                printf("write failed, error: %zd\n", wret);
+                SIMPLE_LOG("write failed, error: %zd", wret);
                 return;
             }
             left -= wret;
@@ -37,7 +38,7 @@ int main(int argc, char *argv[])
 {
     if (argc != 2)
     {
-        printf("Usage: %s buffer_size\n", argv[0]);
+        SIMPLE_LOG("Usage: %s buffer_size", argv[0]);
         return 1;
     }
     int bufferSize = atoi(argv[1]);

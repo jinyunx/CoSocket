@@ -1,4 +1,5 @@
 #include "Epoller.h"
+#include "SimpleLog.h"
 
 #include <unistd.h>
 #include <stdio.h>
@@ -12,7 +13,7 @@ Epoller::Epoller(const HandlerFunc &handler)
 {
     if (m_epollFd < 0)
     {
-        printf("epoll_create1 error: %s\n", strerror(errno));
+        SIMPLE_LOG("epoll_create1 error: %s", strerror(errno));
         exit(1);
     }
 }
@@ -32,7 +33,7 @@ void Epoller::Poll(int timeoutMs)
         if (errno == EINTR)
             return;
 
-        printf("epoll_wait error: %s\n", strerror(errno));
+        SIMPLE_LOG("epoll_wait error: %s", strerror(errno));
         exit(1);
     }
 
@@ -67,8 +68,8 @@ int Epoller::EpollCtl(int operation, int fd, uint32_t events)
     event.data.fd = fd;
     if (::epoll_ctl(m_epollFd, operation, fd, &event) < 0)
     {
-        printf("epoll_ctl failed, operation: %d, fd: %d, error: %s\n",
-               operation, fd, strerror(errno));
+        SIMPLE_LOG("epoll_ctl failed, operation: %d, fd: %d, error: %s",
+                   operation, fd, strerror(errno));
         return errno;
     }
     return 0;
