@@ -10,7 +10,7 @@ void RequestHandle(
     ssize_t wret = 0;
     while (1)
     {
-        ssize_t ret = connector->Read(buffer.data(), bufferSize);
+        ssize_t ret = connector->Read(buffer.data(), bufferSize, 3000);
         if (ret <= 0)
         {
             SIMPLE_LOG("read failed, error: %zd, wret: %zd",
@@ -22,7 +22,7 @@ void RequestHandle(
         ssize_t offset = 0;
         while (left > 0)
         {
-            wret = connector->Write(buffer.data() + offset, left);
+            wret = connector->Write(buffer.data() + offset, left, 3000);
             if (wret < 0)
             {
                 SIMPLE_LOG("write failed, error: %zd", wret);

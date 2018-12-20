@@ -108,7 +108,7 @@ void TcpServer::DoAccept()
 {
     while(1)
     {
-        int sockFd = m_cs->Accept(m_listenFd, 0, 0);
+        int sockFd = m_cs->Accept(m_listenFd, 0, 0, -1);
         if (sockFd)
         {
             int flags = fcntl(sockFd, F_GETFL, 0);

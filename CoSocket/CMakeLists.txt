@@ -40,6 +40,7 @@ add_library(CoSocket
     "net/TcpClient.cpp"
     "net/TcpConnector.cpp"
     "net/TcpServer.cpp"
+    "base/Timestamp.cpp"
     "3rd/coroutine/coroutine.c"
     )
 

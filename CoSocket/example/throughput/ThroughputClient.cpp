@@ -28,7 +28,7 @@ void SendFunc(int bufferSize, CoSocket &coSocket)
     }
 
     TcpClient tcpClient(coSocket);
-    ssize_t ret = tcpClient.Connect("127.0.0.1", 12345);
+    ssize_t ret = tcpClient.Connect("127.0.0.1", 12345, 3000);
     if (ret != 0)
     {
         SIMPLE_LOG("connect fail, error: %zd", ret);
@@ -44,7 +44,7 @@ void SendFunc(int bufferSize, CoSocket &coSocket)
         ssize_t offset = 0;
         while (left > 0)
         {
-            ret = tcpClient.Write(buffer.data() + offset, left);
+            ret = tcpClient.Write(buffer.data() + offset, left, 3000);
             if (ret < 0)
             {
                 SIMPLE_LOG("write fail, error: %zd", ret);
@@ -58,7 +58,7 @@ void SendFunc(int bufferSize, CoSocket &coSocket)
         offset = 0;
         while (left > 0)
         {
-            ret = tcpClient.Read(buffer.data() + offset, left);
+            ret = tcpClient.Read(buffer.data() + offset, left, 3000);
             if (ret < 0)
             {
                 SIMPLE_LOG("read fail, error: %zd", ret);

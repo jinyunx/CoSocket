@@ -41,7 +41,7 @@ void Timer::Wait(int64_t ms)
     }
 
     uint64_t num = 0;
-    m_cs.Read(m_fd, reinterpret_cast<char *>(&num), sizeof num);
+    m_cs.Read(m_fd, reinterpret_cast<char *>(&num), sizeof num, -1);
     return;
 }
 

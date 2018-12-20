@@ -12,13 +12,19 @@ void HandleRequest(TcpServer::ConnectorPtr connector)
     std::vector<char> buffer(1024);
     while(1)
     {
-        int ret = connector->Read(buffer.data(), buffer.size());
+        int ret = connector->Read(buffer.data(), buffer.size(), 3000);
         if (ret <= 0)
+        {
+            SIMPLE_LOG("read failed, error: %d", ret);
             return;
+        }
 
-        ret = connector->Write(buffer.data(), ret);
+        ret = connector->Write(buffer.data(), ret, 3000);
         if (ret < 0)
+        {
+            SIMPLE_LOG("write failed, error: %d", ret);
             return;
+        }
     }
 }
 

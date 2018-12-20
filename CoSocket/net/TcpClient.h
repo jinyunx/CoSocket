@@ -9,10 +9,11 @@ public:
     TcpClient(CoSocket &cs);
     ~TcpClient();
 
-    int Connect(const std::string &ip, unsigned short port);
+    int Connect(const std::string &ip, unsigned short port,
+                int64_t timeoutMs);
 
-    ssize_t Read(char *buffer, size_t size);
-    ssize_t Write(const char *buffer, size_t size);
+    ssize_t Read(char *buffer, size_t size, int64_t timeoutMs);
+    ssize_t Write(const char *buffer, size_t size, int64_t timeoutMs);
 
     void Close();
 

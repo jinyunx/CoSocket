@@ -26,7 +26,8 @@ TcpClient::~TcpClient()
 }
 
 int TcpClient::Connect(const std::string &ip,
-                       unsigned short port)
+                       unsigned short port,
+                       int64_t timeoutMs)
 {
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof addr);
@@ -34,18 +35,20 @@ int TcpClient::Connect(const std::string &ip,
     addr.sin_addr.s_addr = inet_addr(ip.c_str());
     addr.sin_port = htons(port);
     return m_cs.Connect(
-        m_fd, reinterpret_cast<struct sockaddr *>(&addr), sizeof addr);
+        m_fd, reinterpret_cast<struct sockaddr *>(&addr),
+        sizeof addr, timeoutMs);
 }
 
-
-ssize_t TcpClient::Read(char *buffer, size_t size)
+ssize_t TcpClient::Read(char *buffer, size_t size,
+                        int64_t timeoutMs)
 {
-    return m_cs.Read(m_fd, buffer, size);
+    return m_cs.Read(m_fd, buffer, size, timeoutMs);
 }
 
-ssize_t TcpClient::Write(const char *buffer, size_t size)
+ssize_t TcpClient::Write(const char *buffer, size_t size,
+                         int64_t timeoutMs)
 {
-    return m_cs.Write(m_fd, buffer, size);
+    return m_cs.Write(m_fd, buffer, size, timeoutMs);
 }
 
 void TcpClient::Close()
