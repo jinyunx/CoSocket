@@ -221,7 +221,7 @@ int CoSocket::Connect(int fd, const sockaddr * addr,
 
     SetTimeoutGuard setTimeout(
         *m_timeoutSet, coroutine_running(m_schedule), timeoutMs);
-    AddEventAndYield(fd, EPOLLOUT | EPOLLERR);
+    AddEventAndYield(fd, EPOLLOUT);
 
     if (!m_handlingTimeout)
     {
@@ -239,7 +239,7 @@ int CoSocket::Connect(int fd, const sockaddr * addr,
         ret = ETIME;
     }
 
-    DeleteEvent(fd);
+    DeleteEvent(fd, EPOLLOUT);
 
     return -ret;
 }
@@ -260,7 +260,7 @@ int CoSocket::Accept(int fd, struct sockaddr *addr,
 
     SetTimeoutGuard setTimeout(
         *m_timeoutSet, coroutine_running(m_schedule), timeoutMs);
-    AddEventAndYield(fd, EPOLLIN | EPOLLERR);
+    AddEventAndYield(fd, EPOLLIN);
 
     ret = -1;
     if (!m_handlingTimeout)
@@ -268,7 +268,7 @@ int CoSocket::Accept(int fd, struct sockaddr *addr,
     else
         errno = ETIME;
 
-    DeleteEvent(fd);
+    DeleteEvent(fd, EPOLLIN);
 
     if (ret == -1)
         return -errno;
@@ -290,7 +290,7 @@ ssize_t CoSocket::Read(int fd, char *buffer, size_t size,
     SetTimeoutGuard setTimeout(
         *m_timeoutSet, coroutine_running(m_schedule), timeoutMs);
 
-    AddEventAndYield(fd, EPOLLIN | EPOLLERR);
+    AddEventAndYield(fd, EPOLLIN);
 
     ret = -1;
     if (!m_handlingTimeout)
@@ -298,7 +298,7 @@ ssize_t CoSocket::Read(int fd, char *buffer, size_t size,
     else
         errno = ETIME;
 
-    DeleteEvent(fd);
+    DeleteEvent(fd, EPOLLIN);
 
     if (ret == -1)
         return -errno;
@@ -324,7 +324,7 @@ ssize_t CoSocket::Write(int fd, const char *buffer, size_t size,
     SetTimeoutGuard setTimeout(
         *m_timeoutSet, coroutine_running(m_schedule), timeoutMs);
 
-    AddEventAndYield(fd, EPOLLOUT | EPOLLERR);
+    AddEventAndYield(fd, EPOLLOUT);
 
     ret = -1;
     if (!m_handlingTimeout)
@@ -332,7 +332,7 @@ ssize_t CoSocket::Write(int fd, const char *buffer, size_t size,
     else
         errno = ETIME;
 
-    DeleteEvent(fd);
+    DeleteEvent(fd, EPOLLOUT);
 
     if (ret == -1)
         return -errno;
@@ -342,26 +342,25 @@ ssize_t CoSocket::Write(int fd, const char *buffer, size_t size,
 
 int CoSocket::AddEventAndYield(int fd, uint32_t events)
 {
-    if (!SaveToCoIdMap(fd))
+    if (!SaveToCoIdMap(fd, events))
         return -1;
 
-    // TODO:
-    // Not support read and write for the same fd
-    // at the same time
+    events = GetEvents(fd);
     if (m_epoller->Update(fd, events) != 0)
     {
-        EraseCoIdMap(fd);
-        return -1;
+        SIMPLE_LOG("Epoll update failed, fatal error, exit now");
+        ResetInCoIdMap(fd, events);
+        exit(1);
     }
 
     coroutine_yield(m_schedule);
     return 0;
 }
 
-void CoSocket::DeleteEvent(int fd)
+void CoSocket::DeleteEvent(int fd, uint32_t events)
 {
     m_epoller->Update(fd, 0);
-    EraseCoIdMap(fd);
+    ResetInCoIdMap(fd, events);
 }
 
 void CoSocket::InterCoFunc(struct schedule *s, void *ud)
@@ -372,33 +371,128 @@ void CoSocket::InterCoFunc(struct schedule *s, void *ud)
     if (func) (*func)();
 }
 
-bool CoSocket::SaveToCoIdMap(int coKey)
+bool CoSocket::SaveToCoIdMap(int fd, uint32_t events)
 {
-    CoIdMap::const_iterator it = m_coIdMap.find(coKey);
-    if (it != m_coIdMap.end())
+    int coId = coroutine_running(m_schedule);
+
+    FdWatcher &fdWatcher = m_coIdMap[fd];
+    if (events & EPOLLIN)
     {
-        SIMPLE_LOG("Dumplicate co key is not allowed.");
-        return false;
+        if (fdWatcher.HasReadCoroutine())
+        {
+            SIMPLE_LOG("fd read dumplicate in "
+                       "two coroutine is not allowed.");
+            return false;
+        }
+        fdWatcher.SetReadCoId(coId);
     }
 
-    m_coIdMap[coKey] = coroutine_running(m_schedule);
+    if (events & EPOLLOUT)
+    {
+        if (fdWatcher.HasWriteCoroutine())
+        {
+            SIMPLE_LOG("fd write dumplicate in "
+                       "two coroutine is not allowed.");
+            return false;
+        }
+        fdWatcher.SetWriteCoId(coId);
+    }
+
     return true;
 }
 
-void CoSocket::EraseCoIdMap(int fd)
+void CoSocket::ResetInCoIdMap(int fd, uint32_t events)
 {
-    m_coIdMap.erase(fd);
+    if (events & EPOLLIN)
+        m_coIdMap[fd].ResetReadCoId();
+    
+    if (events & EPOLLOUT)
+        m_coIdMap[fd].ResetWriteCoId();
+}
+
+uint32_t CoSocket::GetEvents(int fd)
+{
+    uint32_t events = 0;
+    if (m_coIdMap[fd].HasReadCoroutine())
+        events |= EPOLLIN;
+    if (m_coIdMap[fd].HasWriteCoroutine())
+        events |= EPOLLOUT;
+    return events;
 }
 
 void CoSocket::EventHandler(int fd, uint32_t events)
 {
-    CoIdMap::const_iterator it = m_coIdMap.find(fd);
-    if (it == m_coIdMap.end())
+    FdWatcher &fdWatcher = m_coIdMap[fd];
+
+    if (!(fdWatcher.HasReadCoroutine()) &&
+        !(fdWatcher.HasWriteCoroutine()))
     {
         SIMPLE_LOG("Cannot find the event handler,"
-                   " fd: %d, events: %d", fd, events);
+                   " fd: %d, events: %d",
+                   fd,
+                   events);
         return;
     }
 
-    coroutine_resume(m_schedule, it->second);
+    bool error = events & EPOLLERR ||
+                 events & EPOLLHUP;
+
+    if (error || events & EPOLLIN)
+    {
+        if (fdWatcher.HasReadCoroutine())
+            coroutine_resume(m_schedule, fdWatcher.ReadCoId());
+    }
+
+    if (error || events & EPOLLOUT)
+    {
+        if (fdWatcher.HasWriteCoroutine())
+            coroutine_resume(m_schedule, fdWatcher.WriteCoId());
+    }
+
+}
+
+bool CoSocket::FdWatcher::HasReadCoroutine() const
+{
+    return m_readCoId != -1;
+}
+
+bool CoSocket::FdWatcher::HasWriteCoroutine() const
+{
+    return m_writeCoId != -1;
+}
+
+int CoSocket::FdWatcher::ReadCoId() const
+{
+    return m_readCoId;
+}
+
+int CoSocket::FdWatcher::WriteCoId() const
+{
+    return m_writeCoId;
+}
+
+bool CoSocket::FdWatcher::SetReadCoId(int coId)
+{
+    if (m_readCoId != -1)
+        return false;
+    m_readCoId = coId;
+    return true;
+}
+
+bool CoSocket::FdWatcher::SetWriteCoId(int coId)
+{
+    if (m_writeCoId != -1)
+        return false;
+    m_writeCoId = coId;
+    return true;
+}
+
+void CoSocket::FdWatcher::ResetReadCoId()
+{
+    m_readCoId = -1;
+}
+
+void CoSocket::FdWatcher::ResetWriteCoId()
+{
+    m_writeCoId = -1;
 }

@@ -35,14 +35,42 @@ public:
     ssize_t Write(int fd, const char *buffer, size_t size, int64_t timeoutMs);
 
 private:
-    typedef std::map<int, int> CoIdMap;
+    class FdWatcher
+    {
+    public:
+        FdWatcher()
+            : m_readCoId(-1), m_writeCoId(-1)
+        {
+        }
+
+        bool HasReadCoroutine() const;
+        bool HasWriteCoroutine() const;
+
+        int ReadCoId() const;
+        int WriteCoId() const;
+
+        bool SetReadCoId(int coId);
+        bool SetWriteCoId(int coId);
+
+        void ResetReadCoId();
+        void ResetWriteCoId();
+
+    private:
+        int m_readCoId;
+        int m_writeCoId;
+    };
+
+    typedef std::map<int, FdWatcher> CoIdMap;
     typedef std::list<CoFunction> CoFuncList;
 
     int AddEventAndYield(int fd, uint32_t events);
-    void DeleteEvent(int fd);
+    void DeleteEvent(int fd, uint32_t events);
+
+    bool SaveToCoIdMap(int fd, uint32_t events);
+    void ResetInCoIdMap(int fd, uint32_t events);
+    uint32_t GetEvents(int fd);
+
     static void InterCoFunc(struct schedule *s, void *ud);
-    bool SaveToCoIdMap(int fd);
-    void EraseCoIdMap(int fd);
     void EventHandler(int fd, uint32_t events);
 
     bool m_handlingTimeout;
