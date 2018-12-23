@@ -67,11 +67,6 @@ int Epoller::EpollCtl(int operation, int fd, uint32_t events)
     event.events = events;
     event.data.fd = fd;
     if (::epoll_ctl(m_epollFd, operation, fd, &event) < 0)
-    {
-        SIMPLE_LOG("epoll_ctl failed, operation: %d, fd: %d, error: %s",
-                   operation, fd, strerror(errno));
         return errno;
-    }
     return 0;
 }
-

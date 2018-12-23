@@ -1,37 +1,117 @@
 #include "CoSocket.h"
 #include "TcpServer.h"
 #include "SimpleLog.h"
-#include <vector>
+#include "CoQueue.h"
+
+#include <deque>
+#include <memory>
+
+class Buffer
+{
+public:
+    Buffer(int capacity)
+        : m_stop(false),
+          m_size(0),
+          m_capacity(capacity),
+          m_data(new char[m_capacity])
+    {
+    }
+
+    ~Buffer()
+    {
+        delete [] m_data;
+        m_data = 0;
+    }
+
+    void Stop()
+    {
+        m_stop = true;
+    }
+
+    bool IsStop() const
+    {
+        return m_stop;
+    }
+
+    int Size() const
+    {
+        return m_size;
+    }
+
+    char *Data()
+    {
+        return m_data;
+    }
+
+    void SetSize(int size)
+    {
+        m_size = size;
+    }
+
+private:
+    bool m_stop;
+    int m_size;
+    int m_capacity;
+    char *m_data;
+};
+
+typedef CoQueue<Buffer> BufferQueue;
+typedef std::shared_ptr<BufferQueue> BufferQueuePtr;
+typedef BufferQueue::DataPtr BufferPtr;
+
+void WriteCoroutine(BufferQueuePtr bufferQueue, int bufferSize,
+                    TcpServer::ConnectorPtr connector)
+{
+    while (1)
+    {
+        BufferPtr dataToWrite = bufferQueue->Deque();
+
+        if (dataToWrite->IsStop())
+            break;
+
+        ssize_t left = dataToWrite->Size();
+        ssize_t offset = 0;
+        ssize_t ret = 0;
+        while (left > 0)
+        {
+            ret = connector->Write(dataToWrite->Data() + offset, left, 3000);
+            if (ret < 0)
+            {
+                SIMPLE_LOG("write failed, error: %zd", ret);
+                break;
+            }
+            left -= ret;
+            offset += ret;
+        }
+        if (ret < 0)
+            break;
+    }
+}
 
 void RequestHandle(
     int bufferSize, TcpServer::ConnectorPtr connector)
 {
-    std::vector<char> buffer(bufferSize);
-    ssize_t wret = 0;
+    BufferQueuePtr bufferQueue(new BufferQueue(connector->GetCoSocket()));
+
+    connector->GetCoSocket().NewCoroutine(
+        std::bind(&WriteCoroutine, bufferQueue, bufferSize, connector));
+
     while (1)
     {
-        ssize_t ret = connector->Read(buffer.data(), bufferSize, 3000);
+        BufferPtr buffer(new Buffer(bufferSize));
+        ssize_t ret = connector->Read(buffer->Data(), bufferSize, 3000);
         if (ret <= 0)
         {
-            SIMPLE_LOG("read failed, error: %zd, wret: %zd",
-                       ret, wret);
-            return;
+            SIMPLE_LOG("read failed, error: %zd", ret);
+            break;
         }
-
-        ssize_t left = ret;
-        ssize_t offset = 0;
-        while (left > 0)
-        {
-            wret = connector->Write(buffer.data() + offset, left, 3000);
-            if (wret < 0)
-            {
-                SIMPLE_LOG("write failed, error: %zd", wret);
-                return;
-            }
-            left -= wret;
-            offset += wret;
-        }
+        buffer->SetSize(ret);
+        bufferQueue->Enque(buffer);
     }
+
+    BufferPtr buffer(new Buffer(4));
+    buffer->Stop();
+    bufferQueue->Enque(buffer);
 }
 
 int main(int argc, char *argv[])

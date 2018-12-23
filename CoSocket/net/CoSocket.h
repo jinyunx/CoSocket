@@ -34,6 +34,10 @@ public:
     ssize_t Read(int fd, char *buffer, size_t size, int64_t timeoutMs);
     ssize_t Write(int fd, const char *buffer, size_t size, int64_t timeoutMs);
 
+    uint64_t GetCondition();
+    void ConditionWait(uint64_t condition);
+    void ConditionNotify(uint64_t condition);
+
 private:
     class FdWatcher
     {
@@ -62,6 +66,9 @@ private:
 
     typedef std::map<int, FdWatcher> CoIdMap;
     typedef std::list<CoFunction> CoFuncList;
+    typedef std::set<int> ConditionWaitList;
+    typedef std::map<int, ConditionWaitList> ConditionMap;
+    typedef std::list<int> WaitResumeList;
 
     int AddEventAndYield(int fd, uint32_t events);
     void DeleteEvent(int fd, uint32_t events);
@@ -72,6 +79,10 @@ private:
 
     static void InterCoFunc(struct schedule *s, void *ud);
     void EventHandler(int fd, uint32_t events);
+
+    uint64_t m_conditionCounter;
+    ConditionMap m_conditionMap;
+    WaitResumeList m_waitResumeList;
 
     bool m_handlingTimeout;
     CoFuncList m_coFuncList;

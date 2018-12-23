@@ -150,8 +150,8 @@ private:
 };
 
 CoSocket::CoSocket()
-    : m_handlingTimeout(false), m_timeoutSet(new TimeoutSet),
-      m_schedule(coroutine_open()),
+    : m_conditionCounter(0), m_handlingTimeout(false),
+      m_timeoutSet(new TimeoutSet), m_schedule(coroutine_open()),
       m_epoller(new Epoller(std::bind(&CoSocket::EventHandler,
                                       this, std::placeholders::_1,
                                       std::placeholders::_2)))
@@ -174,6 +174,14 @@ void CoSocket::Run()
             m_coFuncList.pop_front();
             NewCoroutine(func);
         }
+
+        WaitResumeList::const_iterator it = m_waitResumeList.begin();
+        while (it != m_waitResumeList.end())
+        {
+            coroutine_resume(m_schedule, *it);
+            ++it;
+        }
+        m_waitResumeList.clear();
 
         m_epoller->Poll(m_timeoutSet->GetNeareastTimeGap());
 
@@ -262,16 +270,18 @@ int CoSocket::Accept(int fd, struct sockaddr *addr,
         *m_timeoutSet, coroutine_running(m_schedule), timeoutMs);
     AddEventAndYield(fd, EPOLLIN);
 
-    ret = -1;
     if (!m_handlingTimeout)
-        ret = ::accept(fd, addr, addrlen);
+    {
+        if ((ret = ::accept(fd, addr, addrlen)) == -1)
+            ret = -errno;
+    }
     else
-        errno = ETIME;
+    {
+        ret = -ETIME;
+    }
 
     DeleteEvent(fd, EPOLLIN);
 
-    if (ret == -1)
-        return -errno;
     return ret;
 }
 
@@ -292,16 +302,17 @@ ssize_t CoSocket::Read(int fd, char *buffer, size_t size,
 
     AddEventAndYield(fd, EPOLLIN);
 
-    ret = -1;
     if (!m_handlingTimeout)
-        ret = ::read(fd, buffer, size);
+    {
+        if ((ret = ::read(fd, buffer, size)) == -1)
+            ret = -errno;
+    }
     else
-        errno = ETIME;
+    {
+        ret = -ETIME;
+    }
 
     DeleteEvent(fd, EPOLLIN);
-
-    if (ret == -1)
-        return -errno;
 
     return ret;
 }
@@ -326,18 +337,44 @@ ssize_t CoSocket::Write(int fd, const char *buffer, size_t size,
 
     AddEventAndYield(fd, EPOLLOUT);
 
-    ret = -1;
     if (!m_handlingTimeout)
-        ret = ::write(fd, buffer, size);
+    {
+        if ((ret = ::write(fd, buffer, size)) == -1)
+            ret = -errno;
+    }
     else
-        errno = ETIME;
+    {
+        ret = -ETIME;
+    }
 
     DeleteEvent(fd, EPOLLOUT);
 
-    if (ret == -1)
-        return -errno;
-
     return ret;
+}
+
+uint64_t CoSocket::GetCondition()
+{
+    if (m_conditionCounter == 0xFFFFFFFFFFFFFFFF)
+    {
+        SIMPLE_LOG("Condition counter overflow");
+        abort();
+    }
+    return m_conditionCounter++;
+}
+
+void CoSocket::ConditionWait(uint64_t condition)
+{
+    m_conditionMap[condition].insert(coroutine_running(m_schedule));
+    coroutine_yield(m_schedule);
+}
+
+void CoSocket::ConditionNotify(uint64_t condition)
+{
+    ConditionWaitList &list = m_conditionMap[condition];
+    m_waitResumeList.insert(m_waitResumeList.end(),
+                            list.begin(),
+                            list.end());
+    list.clear();
 }
 
 int CoSocket::AddEventAndYield(int fd, uint32_t events)
@@ -349,8 +386,7 @@ int CoSocket::AddEventAndYield(int fd, uint32_t events)
     if (m_epoller->Update(fd, events) != 0)
     {
         SIMPLE_LOG("Epoll update failed, fatal error, exit now");
-        ResetInCoIdMap(fd, events);
-        exit(1);
+        abort();
     }
 
     coroutine_yield(m_schedule);
@@ -359,7 +395,17 @@ int CoSocket::AddEventAndYield(int fd, uint32_t events)
 
 void CoSocket::DeleteEvent(int fd, uint32_t events)
 {
-    m_epoller->Update(fd, 0);
+    uint32_t oldEvents = 0;
+    if (m_coIdMap[fd].HasReadCoroutine())
+        oldEvents |= EPOLLIN;
+    if (m_coIdMap[fd].HasWriteCoroutine())
+        oldEvents |= EPOLLOUT;
+    uint32_t newEvents = oldEvents & (~events);
+    if (m_epoller->Update(fd, newEvents) != 0)
+    {
+        SIMPLE_LOG("Epoll update failed, fatal error, exit now");
+        abort();
+    }
     ResetInCoIdMap(fd, events);
 }
 
