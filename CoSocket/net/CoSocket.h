@@ -80,6 +80,10 @@ private:
     static void InterCoFunc(struct schedule *s, void *ud);
     void EventHandler(int fd, uint32_t events);
 
+    void RunNewCoFunc();
+    void RunWaitResumeCo();
+    void RunTimeoutCo();
+
     uint64_t m_conditionCounter;
     ConditionMap m_conditionMap;
     WaitResumeList m_waitResumeList;

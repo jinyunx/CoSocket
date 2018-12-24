@@ -168,33 +168,10 @@ void CoSocket::Run()
 {
     while(1)
     {
-        while (!m_coFuncList.empty())
-        {
-            CoFunction func = m_coFuncList.front();
-            m_coFuncList.pop_front();
-            NewCoroutine(func);
-        }
-
-        WaitResumeList::const_iterator it = m_waitResumeList.begin();
-        while (it != m_waitResumeList.end())
-        {
-            coroutine_resume(m_schedule, *it);
-            ++it;
-        }
-        m_waitResumeList.clear();
-
+        RunNewCoFunc();
+        RunWaitResumeCo();
         m_epoller->Poll(m_timeoutSet->GetNeareastTimeGap());
-
-        m_handlingTimeout = true;
-        Timestamp now;
-        while (1)
-        {
-            int coId = m_timeoutSet->GetExpired(now);
-            if (coId == -1)
-                break;
-            coroutine_resume(m_schedule, coId);
-        }
-        m_handlingTimeout = false;
+        RunTimeoutCo();
     }
 }
 
@@ -495,6 +472,42 @@ void CoSocket::EventHandler(int fd, uint32_t events)
             coroutine_resume(m_schedule, fdWatcher.WriteCoId());
     }
 
+}
+
+void CoSocket::RunNewCoFunc()
+{
+    CoFuncList::const_iterator it = m_coFuncList.begin();
+    while (it != m_coFuncList.end())
+    {
+        NewCoroutine(*it);
+        ++it;
+    }
+    m_coFuncList.clear();
+}
+
+void CoSocket::RunWaitResumeCo()
+{
+    WaitResumeList::const_iterator it = m_waitResumeList.begin();
+    while (it != m_waitResumeList.end())
+    {
+        coroutine_resume(m_schedule, *it);
+        ++it;
+    }
+    m_waitResumeList.clear();
+}
+
+void CoSocket::RunTimeoutCo()
+{
+    m_handlingTimeout = true;
+    Timestamp now;
+    while (1)
+    {
+        int coId = m_timeoutSet->GetExpired(now);
+        if (coId == -1)
+            break;
+        coroutine_resume(m_schedule, coId);
+    }
+    m_handlingTimeout = false;
 }
 
 bool CoSocket::FdWatcher::HasReadCoroutine() const
