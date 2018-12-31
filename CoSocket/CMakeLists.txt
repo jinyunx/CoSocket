@@ -40,8 +40,11 @@ add_library(CoSocket
     "net/TcpClient.cpp"
     "net/TcpConnector.cpp"
     "net/TcpServer.cpp"
+    "net/http/HttpParser.cpp"
+    "net/http/HttpDispatch.cpp"
     "base/Timestamp.cpp"
     "3rd/coroutine/coroutine.c"
+    "3rd/http-parser/http_parser.c"
     )
 
 ### Pure coroutine test
@@ -95,5 +98,14 @@ add_executable(ThroughputClient
     )
 
 target_link_libraries(ThroughputClient
+    CoSocket
+    )
+
+### Http server
+add_executable(HttpServer
+    "example/http_server/HttpServer.cpp"
+    )
+
+target_link_libraries(HttpServer
     CoSocket
     )
