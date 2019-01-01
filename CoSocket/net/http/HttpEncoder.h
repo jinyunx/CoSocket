@@ -1,12 +1,12 @@
-#ifndef HTTP_RESPONSER_H
-#define HTTP_RESPONSER_H
+#ifndef HTTP_ENCODER_H
+#define HTTP_ENCODER_H
 
 #include "NonCopyable.h"
 #include <stdio.h>
 #include <string>
 #include <map>
 
-class HttpResponser : private NonCopyable
+class HttpEncoder : private NonCopyable
 {
 public:
     enum StatusCode
@@ -19,7 +19,7 @@ public:
         StatusCode_500ServerErr = 500,
     };
 
-    explicit HttpResponser(bool close)
+    explicit HttpEncoder(bool close)
         : m_statusCode(StatusCode_Unknown),
           m_closeConnection(close)
     { }
@@ -97,4 +97,4 @@ private:
     std::string m_body;
 };
 
-#endif // HTTP_RESPONSER_H
+#endif // HTTP_ENCODER_H

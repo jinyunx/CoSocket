@@ -1,16 +1,16 @@
-#ifndef HTTP_REQUESTER_H
-#define HTTP_REQUESTER_H
+#ifndef HTTP_DECODER_H
+#define HTTP_DECODER_H
 
 #include "HttpParser.h"
 #include "NonCopyable.h"
 
-class HttpRequester : private NonCopyable
+class HttpDecoder : private NonCopyable
 {
 public:
-    HttpRequester()
+    HttpDecoder()
     { }
 
-    ~HttpRequester()
+    ~HttpDecoder()
     { }
 
     bool Parse(const char *data, size_t len)
@@ -89,4 +89,4 @@ private:
     unsigned short m_peerPort;
 };
 
-#endif // HTTP_REQUESTER_H
+#endif // HTTP_DECODER_H

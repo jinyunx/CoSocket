@@ -16,15 +16,15 @@ void HttpDispatch::AddHandler(const std::string &url,
     m_handlers[url] = handler;
 }
 
-void HttpDispatch::ResponseOk(HttpResponser &resp)
+void HttpDispatch::ResponseOk(HttpEncoder &resp)
 {
-    resp.SetStatusCode(HttpResponser::StatusCode_200Ok);
+    resp.SetStatusCode(HttpEncoder::StatusCode_200Ok);
     resp.SetBody(RSP_OK);
 }
 
-void HttpDispatch::ResponseError(HttpResponser &resp)
+void HttpDispatch::ResponseError(HttpEncoder &resp)
 {
-    resp.SetStatusCode(HttpResponser::StatusCode_400BadRequest);
+    resp.SetStatusCode(HttpEncoder::StatusCode_400BadRequest);
     resp.SetBody(RSP_ERROR);
     resp.SetCloseConnection(true);
 }
@@ -34,7 +34,7 @@ void HttpDispatch::operator()(TcpServer::ConnectorPtr connectorPtr)
     std::string buffer;
     buffer.resize(kBufferSize);
     std::size_t sizeInBuffer = 0;
-    HttpRequester request;
+    HttpDecoder request;
     while (1)
     {
         int ret = connectorPtr->Read(&buffer[0] + sizeInBuffer,
@@ -56,7 +56,7 @@ void HttpDispatch::operator()(TcpServer::ConnectorPtr connectorPtr)
 
         if (request.IsComplete())
         {
-            HttpResponser response(false);
+            HttpEncoder response(false);
             Dispatch(request, response);
             if (!Response(connectorPtr, response))
                 return;
@@ -68,8 +68,8 @@ void HttpDispatch::operator()(TcpServer::ConnectorPtr connectorPtr)
         if (sizeInBuffer >= buffer.size())
         {
             SIMPLE_LOG("http too long");
-            HttpResponser response(true);
-            response.SetStatusCode(HttpResponser::StatusCode_500ServerErr);
+            HttpEncoder response(true);
+            response.SetStatusCode(HttpEncoder::StatusCode_500ServerErr);
             response.SetBody(RSP_SERVER_ERR);
 
             Response(connectorPtr, response);
@@ -78,14 +78,14 @@ void HttpDispatch::operator()(TcpServer::ConnectorPtr connectorPtr)
     }
 }
 
-void HttpDispatch::Dispatch(const HttpRequester &request, HttpResponser &response)
+void HttpDispatch::Dispatch(const HttpDecoder &request, HttpEncoder &response)
 {
     SIMPLE_LOG("Request: %s", request.ToString().c_str());
 
     HanderMap::iterator it = m_handlers.find(request.GetUrl().c_str());
     if (it == m_handlers.end())
     {
-        response.SetStatusCode(HttpResponser::StatusCode_404NotFound);
+        response.SetStatusCode(HttpEncoder::StatusCode_404NotFound);
         response.SetBody(RSP_NOTFOUND);
         response.SetCloseConnection(true);
     }
@@ -96,7 +96,7 @@ void HttpDispatch::Dispatch(const HttpRequester &request, HttpResponser &respons
 }
 
 bool HttpDispatch::Response(TcpServer::ConnectorPtr &connectorPtr,
-                            HttpResponser &response)
+                            HttpEncoder &response)
 {
     std::string resBuffer;
     response.AppendToBuffer(resBuffer);

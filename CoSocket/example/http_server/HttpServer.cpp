@@ -2,9 +2,9 @@
 #include "SimpleLog.h"
 #include "http/HttpDispatch.h"
 
-void Handle(const HttpRequester &request, HttpResponser &response)
+void Handle(const HttpDecoder &request, HttpEncoder &response)
 {
-    response.SetStatusCode(HttpResponser::StatusCode_200Ok);
+    response.SetStatusCode(HttpEncoder::StatusCode_200Ok);
     response.SetBody("{\"code\": 0, \"message\": \"\"}\n");
     return;
 }
