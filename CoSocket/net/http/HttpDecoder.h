@@ -33,6 +33,11 @@ public:
         return m_httpParser.GetUrl();
     }
 
+    unsigned int GetStatus() const
+    {
+        return m_httpParser.GetStatus();
+    }
+
     const std::string & GetMethod() const
     {
         return m_httpParser.GetMethod();

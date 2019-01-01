@@ -20,6 +20,7 @@ public:
     const char * GetErrorDetail() const;
 
     const std::string & GetUrl() const;
+    unsigned int GetStatus() const;
     const std::string & GetMethod() const;
     const std::string & GetBody() const;
     const HeaderMap & GetHeaders() const;
@@ -53,6 +54,7 @@ private:
 
     std::string m_url;
     std::string m_urlAndParams;
+    unsigned int m_status;
     std::string m_method;
     HeaderState m_headerState;
     std::string m_headerName;

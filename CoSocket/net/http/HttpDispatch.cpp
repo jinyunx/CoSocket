@@ -37,9 +37,9 @@ void HttpDispatch::operator()(TcpServer::ConnectorPtr connectorPtr)
     HttpDecoder request;
     while (1)
     {
-        int ret = connectorPtr->Read(&buffer[0] + sizeInBuffer,
-                                     buffer.size() - sizeInBuffer,
-                                     kKeepAliveMs);
+        ssize_t ret = connectorPtr->Read(&buffer[0] + sizeInBuffer,
+                                         buffer.size() - sizeInBuffer,
+                                         kKeepAliveMs);
         if (ret <= 0)
         {
             SIMPLE_LOG("read failed, error: %d", ret);
@@ -98,14 +98,13 @@ void HttpDispatch::Dispatch(const HttpDecoder &request, HttpEncoder &response)
 bool HttpDispatch::Response(TcpServer::ConnectorPtr &connectorPtr,
                             HttpEncoder &response)
 {
-    std::string resBuffer;
-    response.AppendToBuffer(resBuffer);
+    std::string resBuffer = response.GetReponseString();
 
     std::size_t hasWrite = 0;
     while (hasWrite < resBuffer.size())
     {
-        int ret = connectorPtr->Write(resBuffer.c_str() + hasWrite,
-                                      resBuffer.size() - hasWrite, kKeepAliveMs);
+        ssize_t ret = connectorPtr->Write(resBuffer.c_str() + hasWrite,
+                                          resBuffer.size() - hasWrite, kKeepAliveMs);
         if (ret < 0)
         {
             SIMPLE_LOG("write failed, error: %d", ret);

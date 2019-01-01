@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string>
 #include <map>
+#include <sstream>
 
 class HttpEncoder : private NonCopyable
 {
@@ -59,34 +60,59 @@ public:
         m_body = body;
     }
 
-    // FIXME: not only support string
-    void AppendToBuffer(std::string &output) const
+    void SetMethod(const std::string &method)
     {
-        char buf[32];
-        snprintf(buf, sizeof buf, "HTTP/1.1 %d ", m_statusCode);
-        output.append(buf);
-        output.append(m_statusMessage);
-        output.append("\r\n");
+        m_method = method;
+    }
 
-        snprintf(buf, sizeof buf, "Content-Length: %zd\r\n", m_body.size());
-        output.append(buf);
+    void SetUrl(const std::string &url)
+    {
+        m_url = url;
+    }
+
+    void AddParameter(const std::string &key, const std::string &value)
+    {
+        m_parameters[key] = value;
+    }
+
+    std::string GetReponseString() const
+    {
+        std::ostringstream oss;
+        oss << "HTTP/1.1 " << m_statusCode << m_statusMessage << "\r\n";
+        AppendToStream(oss);
+        return oss.str();
+    }
+
+    std::string GetRequestString() const
+    {
+        std::ostringstream oss;
+        oss << m_method << " " << m_url;
+        std::map<std::string, std::string>::const_iterator it = m_parameters.begin();
+        for (; it != m_parameters.end(); ++it)
+        {
+            oss << (it == m_parameters.begin() ? "?" : "&");
+            oss << it->first << "=" << it->second;
+        }
+        oss << " HTTP/1.1\r\n";
+        AppendToStream(oss);
+        return oss.str();
+    }
+
+    void AppendToStream(std::ostringstream &oss) const
+    {
+        oss << "Content-Length: " << m_body.size() << "\r\n";
 
         if (m_closeConnection)
-            output.append("Connection: close\r\n");
+            oss << "Connection: close\r\n";
         else
-            output.append("Connection: Keep-Alive\r\n");
+            oss << "Connection: Keep-Alive\r\n";
 
-        for (std::map<std::string, std::string>::const_iterator it = m_headers.begin();
-             it != m_headers.end(); ++it)
-        {
-            output.append(it->first);
-            output.append(": ");
-            output.append(it->second);
-            output.append("\r\n");
-        }
+        std::map<std::string, std::string>::const_iterator it = m_headers.begin();
+        for (; it != m_headers.end(); ++it)
+            oss << it->first << ": " << it->second << "\r\n";
 
-        output.append("\r\n");
-        output.append(m_body);
+        oss << "\r\n";
+        oss << m_body;
     }
 
 private:
@@ -95,6 +121,11 @@ private:
     std::string m_statusMessage;
     bool m_closeConnection;
     std::string m_body;
+
+    // request
+    std::string m_method;
+    std::string m_url;
+    std::map<std::string, std::string> m_parameters;
 };
 
 #endif // HTTP_ENCODER_H

@@ -109,3 +109,12 @@ add_executable(HttpServer
 target_link_libraries(HttpServer
     CoSocket
     )
+
+### Http client
+add_executable(HttpClient
+    "example/http_server/HttpClient.cpp"
+    )
+
+target_link_libraries(HttpClient
+    CoSocket
+    )

@@ -48,6 +48,7 @@ void HttpParser::Reset()
     m_headers.clear();
     m_parameters.clear();
     m_body.clear();
+    m_status = 0;
 }
 
 const char * HttpParser::GetErrorDetail() const
@@ -58,6 +59,11 @@ const char * HttpParser::GetErrorDetail() const
 const std::string & HttpParser::GetUrl() const
 {
     return m_url;
+}
+
+unsigned int HttpParser::GetStatus() const
+{
+    return m_status;
 }
 
 const std::string & HttpParser::GetMethod() const
@@ -186,6 +192,7 @@ int HttpParser::OnComplete(http_parser * parser)
 
     httpParser->m_method = http_method_str(
         static_cast<enum http_method>(parser->method));
+    httpParser->m_status = parser->status_code;
     ParseUrlAndParam(httpParser);
 
     httpParser->m_complete = true;
