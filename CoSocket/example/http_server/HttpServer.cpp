@@ -14,10 +14,10 @@ int main()
     HttpDispatch httpDispatch;
     httpDispatch.AddHandler("/", Handle);
 
-    TcpServer echo("0.0.0.0", 12345);
-    echo.SetRequestHandler(std::ref(httpDispatch));
+    TcpServer httpServer("0.0.0.0", 12345);
+    httpServer.SetRequestHandler(std::ref(httpDispatch));
     std::list<int> childIds;
-    echo.ListenAndFork(1, childIds);
-    echo.MonitorSlavesLoop();
+    httpServer.ListenAndFork(1, childIds);
+    httpServer.MonitorSlavesLoop();
     return 0;
 }
