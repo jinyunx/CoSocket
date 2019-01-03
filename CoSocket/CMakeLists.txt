@@ -43,6 +43,7 @@ add_library(CoSocket
     "net/http/HttpParser.cpp"
     "net/http/HttpDispatch.cpp"
     "base/Timestamp.cpp"
+    "base/UrlCodec.cpp"
     "3rd/coroutine/coroutine.c"
     "3rd/http-parser/http_parser.c"
     )

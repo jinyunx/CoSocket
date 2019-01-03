@@ -1,4 +1,6 @@
 #include "HttpParser.h"
+#include "UrlCodec.h"
+
 #include <sstream>
 
 http_parser_settings HttpParser::m_settings =
@@ -210,6 +212,7 @@ std::string HttpParser::GetStringBefore(char flag, const std::string urlAndParam
 
 void HttpParser::ParseUrlAndParam(HttpParser *httpParser)
 {
+    httpParser->m_urlAndParams = url_codec::UrlDecode(httpParser->m_urlAndParams);
     httpParser->m_url = GetStringBefore('?', httpParser->m_urlAndParams, 0);
     std::size_t offset = httpParser->m_url.size() + 1;
     while (offset < httpParser->m_urlAndParams.size())
