@@ -40,36 +40,24 @@ void SendFunc(int bufferSize, CoSocket &coSocket)
     *reinterpret_cast<int*>(buffer.data()) = htonl(dataSize);
     while (1)
     {
-        ssize_t left = bufferSize;
-        ssize_t offset = 0;
-        while (left > 0)
+        ret = tcpClient.WriteAll(buffer.data(), bufferSize, 3000);
+        if (ret != bufferSize)
         {
-            ret = tcpClient.Write(buffer.data() + offset, left, 3000);
-            if (ret < 0)
-            {
-                SIMPLE_LOG("write fail, error: %zd", ret);
-                return;
-            }
-            left -= ret;
-            offset += ret;
+            SIMPLE_LOG("write fail, error: %zd", ret);
+            return;
         }
 
-        left = bufferSize;
-        offset = 0;
-        while (left > 0)
+        ret = tcpClient.ReadFull(buffer.data(), bufferSize, 3000);
+        if (ret != bufferSize)
         {
-            ret = tcpClient.Read(buffer.data() + offset, left, 3000);
-            if (ret < 0)
-            {
-                SIMPLE_LOG("read fail, error: %zd", ret);
-                return;
-            }
-            left -= ret;
-            offset += ret;
+            SIMPLE_LOG("read fail, expect: %zd, read return: %zd",bufferSize, ret);
+            return;
         }
+
         if (ntohl(*reinterpret_cast<int*>(buffer.data())) != dataSize)
             SIMPLE_LOG("ack data error");
-        g_numSendAndAckPer1Sec += bufferSize;
+        else
+            g_numSendAndAckPer1Sec += bufferSize;
     }
 }
 

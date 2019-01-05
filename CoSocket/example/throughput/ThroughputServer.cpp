@@ -69,22 +69,12 @@ void WriteCoroutine(BufferQueuePtr bufferQueue, int bufferSize,
         if (dataToWrite->IsStop())
             break;
 
-        ssize_t left = dataToWrite->Size();
-        ssize_t offset = 0;
-        ssize_t ret = 0;
-        while (left > 0)
+        ssize_t ret = connector->WriteAll(dataToWrite->Data(), dataToWrite->Size(), 3000);
+        if (ret != dataToWrite->Size())
         {
-            ret = connector->Write(dataToWrite->Data() + offset, left, 3000);
-            if (ret < 0)
-            {
-                SIMPLE_LOG("write failed, error: %zd", ret);
-                break;
-            }
-            left -= ret;
-            offset += ret;
-        }
-        if (ret < 0)
+            SIMPLE_LOG("write failed, error: %zd", ret);
             break;
+        }
     }
 }
 

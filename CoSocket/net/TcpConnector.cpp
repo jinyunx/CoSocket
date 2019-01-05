@@ -18,10 +18,22 @@ ssize_t TcpConnector::Read(char *buffer, size_t size,
     return m_cs.Read(m_fd, buffer, size, timeoutMs);
 }
 
+ssize_t TcpConnector::ReadFull(char * buffer, size_t size,
+                               int64_t timeoutMs)
+{
+    return m_cs.ReadFull(m_fd, buffer, size, timeoutMs);
+}
+
 ssize_t TcpConnector::Write(const char *buffer, size_t size,
                             int64_t timeoutMs)
 {
     return m_cs.Write(m_fd, buffer, size, timeoutMs);
+}
+
+ssize_t TcpConnector::WriteAll(const char * buffer, size_t size,
+                               int64_t timeoutMs)
+{
+    return m_cs.WriteAll(m_fd, buffer, size, timeoutMs);
 }
 
 void TcpConnector::Close()

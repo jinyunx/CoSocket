@@ -19,7 +19,7 @@ void HandleRequest(TcpServer::ConnectorPtr connector)
             return;
         }
 
-        ret = connector->Write(buffer.data(), ret, 3000);
+        ret = connector->WriteAll(buffer.data(), ret, 3000);
         if (ret < 0)
         {
             SIMPLE_LOG("write failed, error: %d", ret);

@@ -9,10 +9,10 @@ public:
     TcpConnector(CoSocket &cs, int fd);
     ~TcpConnector();
 
-    ssize_t Read(char *buffer, size_t size,
-                 int64_t timeoutMs);
-    ssize_t Write(const char *buffer, size_t size,
-                  int64_t timeoutMs);
+    ssize_t Read(char *buffer, size_t size, int64_t timeoutMs);
+    ssize_t ReadFull(char *buffer, size_t size, int64_t timeoutMs);
+    ssize_t Write(const char *buffer, size_t size, int64_t timeoutMs);
+    ssize_t WriteAll(const char *buffer, size_t size, int64_t timeoutMs);
 
     void Close();
 

@@ -294,6 +294,26 @@ ssize_t CoSocket::Read(int fd, char *buffer, size_t size,
     return ret;
 }
 
+ssize_t CoSocket::ReadFull(int fd, char * buffer, size_t size,
+                           int64_t timeoutMs)
+{
+    size_t readBytes = 0;
+    while (readBytes < size)
+    {
+        ssize_t ret = Read(fd, buffer + readBytes,
+                           size - readBytes, timeoutMs);
+
+        if (ret < 0)
+            return ret;
+
+        if (ret == 0)
+            return readBytes;
+
+        readBytes += ret;
+    }
+    return readBytes;
+}
+
 ssize_t CoSocket::Write(int fd, const char *buffer, size_t size,
                         int64_t timeoutMs)
 {
@@ -327,6 +347,21 @@ ssize_t CoSocket::Write(int fd, const char *buffer, size_t size,
     DeleteEvent(fd, EPOLLOUT);
 
     return ret;
+}
+
+ssize_t CoSocket::WriteAll(int fd, const char * buffer, size_t size,
+                           int64_t timeoutMs)
+{
+    size_t writeBytes = 0;
+    while (writeBytes < size)
+    {
+        ssize_t ret = Write(fd, buffer + writeBytes,
+                            size - writeBytes, timeoutMs);
+        if (ret < 0)
+            return ret;
+        writeBytes += ret;
+    }
+    return writeBytes;
 }
 
 uint64_t CoSocket::GetCondition()

@@ -45,10 +45,20 @@ ssize_t TcpClient::Read(char *buffer, size_t size,
     return m_cs.Read(m_fd, buffer, size, timeoutMs);
 }
 
+ssize_t TcpClient::ReadFull(char * buffer, size_t size, int64_t timeoutMs)
+{
+    return m_cs.ReadFull(m_fd, buffer, size, timeoutMs);
+}
+
 ssize_t TcpClient::Write(const char *buffer, size_t size,
                          int64_t timeoutMs)
 {
     return m_cs.Write(m_fd, buffer, size, timeoutMs);
+}
+
+ssize_t TcpClient::WriteAll(const char * buffer, size_t size, int64_t timeoutMs)
+{
+    return m_cs.WriteAll(m_fd, buffer, size, timeoutMs);
 }
 
 void TcpClient::Close()

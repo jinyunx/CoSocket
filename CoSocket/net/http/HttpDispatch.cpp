@@ -100,17 +100,12 @@ bool HttpDispatch::Response(TcpServer::ConnectorPtr &connectorPtr,
 {
     std::string resBuffer = response.GetReponseString();
 
-    std::size_t hasWrite = 0;
-    while (hasWrite < resBuffer.size())
+    ssize_t ret = connectorPtr->WriteAll(
+        resBuffer.c_str(), resBuffer.size(), kKeepAliveMs);
+    if (static_cast<size_t>(ret) != resBuffer.size())
     {
-        ssize_t ret = connectorPtr->Write(resBuffer.c_str() + hasWrite,
-                                          resBuffer.size() - hasWrite, kKeepAliveMs);
-        if (ret < 0)
-        {
-            SIMPLE_LOG("write failed, error: %d", ret);
-            return false;
-        }
-        hasWrite += ret;
+        SIMPLE_LOG("write failed, error: %d", ret);
+        return false;
     }
     return true;
 }

@@ -31,8 +31,16 @@ public:
                 socklen_t addrlen, int64_t timeoutMs);
     int Accept(int fd, struct sockaddr *addr,
                socklen_t *addrlen, int64_t timeoutMs);
-    ssize_t Read(int fd, char *buffer, size_t size, int64_t timeoutMs);
-    ssize_t Write(int fd, const char *buffer, size_t size, int64_t timeoutMs);
+
+    ssize_t Read(int fd, char *buffer,
+                 size_t size, int64_t timeoutMs);
+    ssize_t ReadFull(int fd, char *buffer,
+                     size_t size, int64_t timeoutMs);
+
+    ssize_t Write(int fd, const char *buffer,
+                  size_t size, int64_t timeoutMs);
+    ssize_t WriteAll(int fd, const char *buffer,
+                     size_t size, int64_t timeoutMs);
 
     uint64_t GetCondition();
     void ConditionWait(uint64_t condition);
