@@ -9,13 +9,17 @@ void Handle(const HttpDecoder &request, HttpEncoder &response)
     return;
 }
 
-int main()
+void HandleRequest(TcpServer::ConnectorPtr connector)
 {
     HttpDispatch httpDispatch;
     httpDispatch.AddHandler("/", Handle);
+    httpDispatch(connector);
+}
 
+int main()
+{
     TcpServer httpServer("0.0.0.0", 12345);
-    httpServer.SetRequestHandler(std::ref(httpDispatch));
+    httpServer.SetRequestHandler(HandleRequest);
     std::list<int> childIds;
     httpServer.ListenAndFork(1, childIds);
     httpServer.MonitorSlavesLoop();
