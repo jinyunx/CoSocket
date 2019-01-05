@@ -119,3 +119,12 @@ add_executable(HttpClient
 target_link_libraries(HttpClient
     CoSocket
     )
+
+### Tcp proxy
+add_executable(TcpProxy
+    "example/tcp_proxy/TcpProxy.cpp"
+    )
+
+target_link_libraries(TcpProxy
+    CoSocket
+    )

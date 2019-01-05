@@ -413,9 +413,10 @@ void CoSocket::DeleteEvent(int fd, uint32_t events)
     if (m_coIdMap[fd].HasWriteCoroutine())
         oldEvents |= EPOLLOUT;
     uint32_t newEvents = oldEvents & (~events);
-    if (m_epoller->Update(fd, newEvents) != 0)
+    int ret = 0;
+    if ((ret = m_epoller->Update(fd, newEvents)) != 0)
     {
-        SIMPLE_LOG("Epoll update failed, fatal error, exit now");
+        SIMPLE_LOG("Epoll update failed, fatal error: %d, exit now", ret);
         abort();
     }
     ResetInCoIdMap(fd, events);

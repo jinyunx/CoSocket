@@ -6,59 +6,6 @@
 #include <deque>
 #include <memory>
 
-class Buffer
-{
-public:
-    Buffer(int capacity)
-        : m_stop(false),
-          m_size(0),
-          m_capacity(capacity),
-          m_data(new char[m_capacity])
-    {
-    }
-
-    ~Buffer()
-    {
-        delete [] m_data;
-        m_data = 0;
-    }
-
-    void Stop()
-    {
-        m_stop = true;
-    }
-
-    bool IsStop() const
-    {
-        return m_stop;
-    }
-
-    int Size() const
-    {
-        return m_size;
-    }
-
-    char *Data()
-    {
-        return m_data;
-    }
-
-    void SetSize(int size)
-    {
-        m_size = size;
-    }
-
-private:
-    bool m_stop;
-    int m_size;
-    int m_capacity;
-    char *m_data;
-};
-
-typedef CoQueue<Buffer> BufferQueue;
-typedef std::shared_ptr<BufferQueue> BufferQueuePtr;
-typedef BufferQueue::DataPtr BufferPtr;
-
 void WriteCoroutine(BufferQueuePtr bufferQueue, int bufferSize,
                     TcpServer::ConnectorPtr connector)
 {

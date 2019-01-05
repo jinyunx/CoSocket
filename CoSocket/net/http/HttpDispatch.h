@@ -28,7 +28,7 @@ private:
     void Dispatch(const HttpDecoder &request, HttpEncoder &response);
     bool Response(TcpServer::ConnectorPtr &connectorPtr, HttpEncoder &response);
 
-    const static int kBufferSize = 1024;
+    const static int kBufferSize = 102400;
     const static int kKeepAliveMs = 3000;
 
     HanderMap m_handlers;
