@@ -4,6 +4,7 @@
 #include "HttpEncoder.h"
 #include "NonCopyable.h"
 #include "TcpClient.h"
+#include "SimpleLog.h"
 
 class HttpClient : private NonCopyable
 {
@@ -22,33 +23,33 @@ public:
     {
         std::string requestStr = m_httpEncoder.GetRequestString();
 
-        std::size_t writedSize = 0;
-        while (writedSize < requestStr.size())
-        {
-            ssize_t ret = m_tcpClient.Write(requestStr.data() + writedSize,
-                                            requestStr.size() - writedSize,
-                                            kKeepAliveMs);
-            if (ret < 0)
-                return ret;
-            writedSize += ret;
-        }
+        // Write to http server
+        ssize_t ret = m_tcpClient.WriteAll(
+            requestStr.data(), requestStr.size(), kKeepAliveMs);
+        if (ret < 0)
+            return ret;
 
+        // Read data and parse
         std::string buffer;
         buffer.resize(kBufferSize);
-        std::size_t sizeInBuffer = 0;
         m_httpDecoder.Reset();
         while (1)
         {
-            ssize_t ret = m_tcpClient.Read(&buffer[0] + sizeInBuffer,
-                                           buffer.size() - sizeInBuffer,
-                                           kKeepAliveMs);
-            if (ret <= 0)
+            ssize_t ret = m_tcpClient.Read(&buffer[0], buffer.size(), kKeepAliveMs);
+            if (ret < 0)
                 return ret;
 
-            sizeInBuffer += ret;
+            // Peek close too early
+            if (ret == 0)
+                return -EPIPE;
 
-            if (!m_httpDecoder.Parse(buffer.data(), sizeInBuffer))
+            if (!m_httpDecoder.Parse(buffer.data(), ret))
+            {
+                std::string p(buffer.data(), ret);
+                SIMPLE_LOG("%s", p.c_str());
+                SIMPLE_LOG("%s", m_httpDecoder.GetErrorDetail().c_str());
                 return -EINVAL;
+            }
 
             if (m_httpDecoder.IsComplete())
                 return 0;
@@ -102,7 +103,7 @@ public:
 
 private:
     const static int kKeepAliveMs = 3000;
-    const static int kBufferSize = 1024;
+    const static int kBufferSize = 102400;
 
     HttpDecoder m_httpDecoder;
     HttpEncoder m_httpEncoder;

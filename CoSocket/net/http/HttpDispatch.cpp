@@ -33,22 +33,17 @@ void HttpDispatch::operator()(TcpServer::ConnectorPtr connectorPtr)
 {
     std::string buffer;
     buffer.resize(kBufferSize);
-    std::size_t sizeInBuffer = 0;
     HttpDecoder request;
     while (1)
     {
-        ssize_t ret = connectorPtr->Read(&buffer[0] + sizeInBuffer,
-                                         buffer.size() - sizeInBuffer,
-                                         kKeepAliveMs);
+        ssize_t ret = connectorPtr->Read(&buffer[0], buffer.size(), kKeepAliveMs);
         if (ret <= 0)
         {
             SIMPLE_LOG("read failed, error: %d", ret);
             return;
         }
 
-        sizeInBuffer += ret;
-
-        if (!request.Parse(buffer.data(), sizeInBuffer))
+        if (!request.Parse(buffer.data(), ret))
         {
             SIMPLE_LOG("http parse error");
             return;
@@ -62,18 +57,6 @@ void HttpDispatch::operator()(TcpServer::ConnectorPtr connectorPtr)
                 return;
 
             request.Reset();
-            sizeInBuffer = 0;
-        }
-
-        if (sizeInBuffer >= buffer.size())
-        {
-            SIMPLE_LOG("http too long");
-            HttpEncoder response(true);
-            response.SetStatusCode(HttpEncoder::StatusCode_500ServerErr);
-            response.SetBody(RSP_SERVER_ERR);
-
-            Response(connectorPtr, response);
-            return;
         }
     }
 }
