@@ -18,6 +18,7 @@ public:
         StatusCode_400BadRequest = 400,
         StatusCode_404NotFound = 404,
         StatusCode_500ServerErr = 500,
+        StatusCode_101WebSocket = 101,
     };
 
     explicit HttpEncoder(bool close)
@@ -78,7 +79,7 @@ public:
     std::string GetReponseString() const
     {
         std::ostringstream oss;
-        oss << "HTTP/1.1 " << m_statusCode << m_statusMessage << "\r\n";
+        oss << "HTTP/1.1 " << m_statusCode << " " << m_statusMessage << "\r\n";
         AppendToStream(oss);
         return oss.str();
     }
