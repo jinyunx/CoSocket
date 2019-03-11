@@ -46,6 +46,12 @@ add_library(CoSocket
     "base/UrlCodec.cpp"
     "3rd/coroutine/coroutine.c"
     "3rd/http-parser/http_parser.c"
+    "3rd/base64/base64.cpp"
+    )
+
+target_link_libraries(CoSocket
+    crypto
+    ssl
     )
 
 ### Pure coroutine test
