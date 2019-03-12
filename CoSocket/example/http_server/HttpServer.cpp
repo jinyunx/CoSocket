@@ -11,8 +11,9 @@ void Handle(const HttpDecoder &request, HttpEncoder &response)
 
 void HandleRequest(TcpServer::ConnectorPtr connector)
 {
-    HttpDispatch httpDispatch(false);
+    HttpDispatch httpDispatch(true);
     httpDispatch.AddHandler("/", Handle);
+    httpDispatch.AddHandler("/ws", Handle);
     httpDispatch(connector);
 }
 

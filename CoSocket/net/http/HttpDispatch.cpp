@@ -1,4 +1,5 @@
 #include "HttpDispatch.h"
+#include "WebSocketEncoder.h"
 #include "SimpleLog.h"
 #include "base64/base64.h"
 #include <openssl/sha.h>
@@ -9,7 +10,7 @@
 #define RSP_SERVER_ERR "{\"code\": 1, \"message\": \"Server Error\"}\n"
 
 HttpDispatch::HttpDispatch(bool enableWebSocket)
-    : m_webSocket(false),
+    : m_isWebSocketReq(false),
       m_enableWebSocket(enableWebSocket)
 {
 }
@@ -59,31 +60,36 @@ void HttpDispatch::ResponseWebSocketHandshake(HttpEncoder &resp, std::string key
 
 void HttpDispatch::operator()(TcpServer::ConnectorPtr connectorPtr)
 {
+    m_connectorPtr = connectorPtr;
+
     std::string buffer;
     buffer.resize(kBufferSize);
     HttpDecoder request;
+    WebSocketParser wsParser;
     while (1)
     {
-        ssize_t ret = connectorPtr->Read(&buffer[0], buffer.size(), kKeepAliveMs);
+        ssize_t ret = m_connectorPtr->Read(&buffer[0], buffer.size(), kKeepAliveMs);
         if (ret <= 0)
         {
             SIMPLE_LOG("read failed, error: %d", ret);
             return;
         }
 
-        if (!m_webSocket)
+        if (!m_isWebSocketReq)
         {
-            if (!ParseToDispatch(buffer.data(), ret, request, connectorPtr))
+            if (!ParseToDispatch(buffer.data(), ret, request))
                 return;
         }
         else
-            ; // websocket handler
+        {
+            if (!ProcessWebSocketData(buffer.data(), ret, wsParser))
+                return;
+        }
     }
 }
 
 bool HttpDispatch::ParseToDispatch(const char *data, size_t len,
-                                   HttpDecoder &request,
-                                   TcpServer::ConnectorPtr &connectorPtr)
+                                   HttpDecoder &request)
 {
     if (!request.Parse(data, len))
     {
@@ -95,11 +101,12 @@ bool HttpDispatch::ParseToDispatch(const char *data, size_t len,
     {
         HttpEncoder response(false);
         Dispatch(request, response);
-        if (!Response(connectorPtr, response))
+        if (!Response(response.GetReponseString().data(),
+                      response.GetReponseString().size()))
             return false;
 
         // Keep the websocket handshake request
-        if (!m_webSocket)
+        if (!m_isWebSocketReq)
             request.Reset();
     }
 
@@ -114,29 +121,58 @@ void HttpDispatch::Dispatch(const HttpDecoder &request, HttpEncoder &response)
     if (m_enableWebSocket)
     {
         webSocketKey = request.GetHeader("Sec-WebSocket-Key");
-        m_webSocket = !webSocketKey.empty();
+        m_isWebSocketReq = !webSocketKey.empty();
     }
 
     HanderMap::iterator it = m_handlers.find(request.GetUrl().c_str());
     if (it == m_handlers.end())
         ResponseNotFound(response);
-    else if (m_webSocket)
+    else if (m_isWebSocketReq)
         ResponseWebSocketHandshake(response, webSocketKey);
     else
         it->second(request, response);
 }
 
-bool HttpDispatch::Response(TcpServer::ConnectorPtr &connectorPtr,
-                            HttpEncoder &response)
+bool HttpDispatch::Response(const char *data, size_t len)
 {
-    std::string resBuffer = response.GetReponseString();
-
-    ssize_t ret = connectorPtr->WriteAll(
-        resBuffer.c_str(), resBuffer.size(), kKeepAliveMs);
-    if (static_cast<size_t>(ret) != resBuffer.size())
+    ssize_t ret = m_connectorPtr->WriteAll(data, len, kKeepAliveMs);
+    if (static_cast<size_t>(ret) != len)
     {
         SIMPLE_LOG("write failed, error: %d", ret);
         return false;
+    }
+    return true;
+}
+
+bool HttpDispatch::ProcessWebSocketData(const char *data, size_t len,
+                                        WebSocketParser &wsParser)
+{
+    if (!wsParser.Parse(data, len))
+    {
+        SIMPLE_LOG("Web socket parse error");
+        return false;
+    }
+
+    if (wsParser.IsComplete())
+    {
+        std::string data(wsParser.GetPayLoad(), wsParser.GetPayloadLen());
+        SIMPLE_LOG("WebSocket data: %s", data.c_str());
+        if (!ResponseWebSocketData(wsParser.GetPayLoad(), wsParser.GetPayloadLen()))
+            return false;
+        wsParser.Reset();
+    }
+    return true;
+}
+
+bool HttpDispatch::ResponseWebSocketData(const char *data, size_t len)
+{
+    WebSocketEncoder wsEncoder(false, data, len);
+    wsEncoder.SetOpCode(WebSocketParser::OpCodeType_Text);
+    while (!wsEncoder.IsComplete())
+    {
+        const std::string &frame = wsEncoder.GetFrame();
+        if (!Response(frame.data(), frame.size()))
+            return false;
     }
     return true;
 }

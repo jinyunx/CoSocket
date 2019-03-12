@@ -24,15 +24,30 @@
 
 #include "NonCopyable.h"
 #include "SimpleLog.h"
+#include <arpa/inet.h>
 #include <string>
+
+#define ntohll(x) ((((uint64_t)ntohl(x&0xFFFFFFFF)) << 32) + ntohl(x >> 32))
+#define htonll(x)   ((((uint64_t)htonl(x&0xFFFFFFFF)) << 32) + htonl(x >> 32))
 
 class WebSocketParser : private NonCopyable
 {
 public:
+    enum OpCodeType
+    {
+        OpCodeType_Continue = 0,
+        OpCodeType_Text     = 1,
+        OpCodeType_Binary   = 2,
+        OpCodeType_Close    = 8,
+        OpCodeType_Ping     = 9,
+        OpCodeType_Pong     = 10,
+    };
+
     WebSocketParser()
         : m_complete(false),
           m_headerComplete(false),
           m_fin(false),
+          m_opCode(0),
           m_payloadLen(0),
           m_offset(0)
     {
@@ -56,20 +71,11 @@ public:
         if (!m_headerComplete)
             return true;
 
-        if (m_payload.size() + m_payloadLen > kMaxLength)
-        {
-            SIMPLE_LOG("Too large payload size: %"PRIu64,
-                       m_payload.size() + m_payloadLen);
+        if (!IsValidFrame())
             return false;
-        }
 
-        // Not enough data
-        if (!NeedBytes(m_payloadLen))
-            return true;
-
-        m_payload.append(GetDataPtr(), m_payloadLen);
-        m_complete = m_fin;
-        ResetCurrentFrame();
+        ProcessPayload();
+        return true;
     }
 
     bool IsComplete() const
@@ -79,12 +85,12 @@ public:
 
     const char *GetPayLoad() const
     {
-        return m_data.data();
+        return m_payload.data();
     }
 
     size_t GetPayloadLen() const
     {
-        return m_data.size();
+        return m_payload.size();
     }
 
     void Reset()
@@ -109,7 +115,7 @@ private:
         return m_inputCache.data() + m_offset;
     }
 
-    bool NeedBytes(uint64_t len)
+    bool HaveBytes(uint64_t len)
     {
         return m_inputCache.size() - m_offset >= len;
     }
@@ -117,12 +123,13 @@ private:
     bool ParseHeader()
     {
         m_offset = 0;
-        if (!NeedBytes(1))
+        if (!HaveBytes(1))
             return false;
+        m_opCode = 0x0F & *GetDataPtr();
         m_fin = 0x80 & *GetDataPtr();
         m_offset += 1;
 
-        if (!NeedBytes(1))
+        if (!HaveBytes(1))
             return false;
         bool mask = 0x80 & *GetDataPtr();
         m_payloadLen = 0x000007FU & (*GetDataPtr());
@@ -130,29 +137,86 @@ private:
 
         if (m_payloadLen == 126)
         {
-            if (!NeedBytes(2))
+            if (!HaveBytes(2))
                 return false;
-            m_payloadLen = *reinterpret_cast<const uint16_t *>(GetDataPtr());
+            m_payloadLen = ntohs(*reinterpret_cast<const uint16_t *>(GetDataPtr()));
             m_offset += 2;
         }
         else if (m_payloadLen == 127)
         {
-            if (!NeedBytes(8))
+            if (!HaveBytes(8))
                 return false;
-            m_payloadLen = *reinterpret_cast<const uint64_t *>(GetDataPtr());
+            m_payloadLen = ntohll(*reinterpret_cast<const uint64_t *>(GetDataPtr()));
             m_offset += 8;
         }
 
-        std::string maskKey;
+        m_maskKey.clear();
         if (mask)
         {
-            if (!NeedBytes(4))
+            if (!HaveBytes(4))
                 return false;
-            maskKey.append(GetDataPtr(), 4);
+            m_maskKey.append(GetDataPtr(), 4);
             m_offset += 4;
         }
 
         return true;
+    }
+
+    bool IsValidFrame()
+    {
+        if (m_maskKey.empty())
+        {
+            SIMPLE_LOG("Not support unmask frame");
+            return false;
+        }
+
+        if (!CheckOpCode())
+        {
+            SIMPLE_LOG("Invalid opcode: %d", m_opCode);
+            return false;
+        }
+
+        if (m_payload.size() + m_payloadLen > kMaxLength)
+        {
+            SIMPLE_LOG("Too large payload size: %d",
+                       m_payload.size() + m_payloadLen);
+            return false;
+        }
+
+        return true;
+    }
+
+    bool CheckOpCode()
+    {
+        switch (m_opCode)
+        {
+            case OpCodeType_Continue:
+                if (m_payload.empty())
+                    return false;
+
+            case OpCodeType_Text:
+            case OpCodeType_Binary:
+            case OpCodeType_Close:
+            case OpCodeType_Ping:
+            case OpCodeType_Pong:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    void ProcessPayload()
+    {
+        // Not enough data
+        if (!HaveBytes(m_payloadLen))
+            return;
+
+        for (uint64_t i = 0; i < m_payloadLen; ++i, ++m_offset)
+            m_payload.push_back(*GetDataPtr() ^ m_maskKey[i % m_maskKey.size()]);
+
+        m_complete = m_fin;
+        ResetCurrentFrame();
     }
 
     const static int kMaxLength = 10 * 1024 * 1024; // 10MB
@@ -160,8 +224,11 @@ private:
     bool m_complete;
     bool m_headerComplete;
     bool m_fin;
+    int m_opCode;
     uint64_t m_payloadLen;
     uint64_t m_offset;
+
+    std::string m_maskKey;
     std::string m_inputCache;
     std::string m_payload;
 };
