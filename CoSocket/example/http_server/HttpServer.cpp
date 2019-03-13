@@ -2,18 +2,28 @@
 #include "SimpleLog.h"
 #include "http/HttpDispatch.h"
 
-void Handle(const HttpDecoder &request, HttpEncoder &response)
+void HttpHandle(const HttpDecoder &request, HttpEncoder &response)
 {
     response.SetStatusCode(HttpEncoder::StatusCode_200Ok);
     response.SetBody("{\"code\": 0, \"message\": \"\"}\n");
     return;
 }
 
+void WebSocketHandle(const WebSocketDecoder &request, WebSocketEncoder &response)
+{
+    std::string data(request.GetPayLoad(), request.GetPayloadLen());
+    SIMPLE_LOG("WebSocket data: %s", data.c_str());
+
+    response.SetOpCode(WebSocketParser::OpCodeType_Text);
+    response.SetPayload(request.GetPayLoad(), request.GetPayloadLen());
+    return;
+}
+
 void HandleRequest(TcpServer::ConnectorPtr connector)
 {
     HttpDispatch httpDispatch(true);
-    httpDispatch.AddHandler("/", Handle);
-    httpDispatch.AddHandler("/ws", Handle);
+    httpDispatch.AddHandler("/", HttpHandle);
+    httpDispatch.AddHandler("/", WebSocketHandle);
     httpDispatch(connector);
 }
 

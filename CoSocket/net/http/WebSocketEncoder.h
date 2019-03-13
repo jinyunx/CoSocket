@@ -7,18 +7,24 @@
 class WebSocketEncoder : private NonCopyable
 {
 public:
-    WebSocketEncoder(bool isClient, const char *data, uint64_t len)
+    explicit WebSocketEncoder(bool isClient)
         : m_isClient(isClient),
           m_opCode(WebSocketParser::OpCodeType_Binary),
           m_frameSize(kFrameSize),
-          m_data(data),
-          m_len(len),
+          m_data(0),
+          m_len(0),
           m_offset(0)
     {
     }
 
     ~WebSocketEncoder()
     {
+    }
+
+    void SetPayload(const char *data, uint64_t len)
+    {
+        m_data = data;
+        m_len = len;
     }
 
     void SetOpCode(WebSocketParser::OpCodeType code)
@@ -48,15 +54,22 @@ private:
     {
         m_outputBuf.clear();
 
+        // Not the first frame
+        if (m_offset)
+            m_opCode = WebSocketParser::OpCodeType_Continue;
+
+        char fin = 0x00;
         uint64_t frameSize = m_frameSize;
         if (m_frameSize > m_len - m_offset)
         {
-            // Fin and op code
-            m_outputBuf.push_back(0x80 | m_opCode);
             frameSize = m_len - m_offset;
+            fin = 0x80;
         }
 
-        // mask and payload len
+        // Fin and op code
+        m_outputBuf.push_back(fin | m_opCode);
+
+        // Mask and payload len
         if (frameSize > 0xFFFF)
         {
             m_outputBuf.push_back(static_cast<int>(m_isClient) << 7 | 127);

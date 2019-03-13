@@ -1,5 +1,4 @@
 #include "HttpDispatch.h"
-#include "WebSocketEncoder.h"
 #include "SimpleLog.h"
 #include "base64/base64.h"
 #include <openssl/sha.h>
@@ -16,32 +15,38 @@ HttpDispatch::HttpDispatch(bool enableWebSocket)
 }
 
 void HttpDispatch::AddHandler(const std::string &url,
-                             const HttpHandler &handler)
+                              const HttpHandler &handler)
 {
-    m_handlers[url] = handler;
+    m_handlers[url].httpHandler = handler;
 }
 
-void HttpDispatch::ResponseOk(HttpEncoder &resp)
+void HttpDispatch::AddHandler(const std::string &url,
+                              const WebSocketHandler &handler)
 {
-    resp.SetStatusCode(HttpEncoder::StatusCode_200Ok);
-    resp.SetBody(RSP_OK);
+    m_handlers[url].webSocketHandler = handler;
 }
 
-void HttpDispatch::ResponseError(HttpEncoder &resp)
+void HttpDispatch::ResponseHttpOk(HttpEncoder &httpResponse)
 {
-    resp.SetStatusCode(HttpEncoder::StatusCode_400BadRequest);
-    resp.SetBody(RSP_ERROR);
-    resp.SetCloseConnection(true);
+    httpResponse.SetStatusCode(HttpEncoder::StatusCode_200Ok);
+    httpResponse.SetBody(RSP_OK);
 }
 
-void HttpDispatch::ResponseNotFound(HttpEncoder &resp)
+void HttpDispatch::ResponseHttpError(HttpEncoder &httpResponse)
 {
-    resp.SetStatusCode(HttpEncoder::StatusCode_404NotFound);
-    resp.SetBody(RSP_NOTFOUND);
-    resp.SetCloseConnection(true);
+    httpResponse.SetStatusCode(HttpEncoder::StatusCode_400BadRequest);
+    httpResponse.SetBody(RSP_ERROR);
+    httpResponse.SetCloseConnection(true);
 }
 
-void HttpDispatch::ResponseWebSocketHandshake(HttpEncoder &resp, std::string key)
+void HttpDispatch::ResponseHttpNotFound(HttpEncoder &httpResponse)
+{
+    httpResponse.SetStatusCode(HttpEncoder::StatusCode_404NotFound);
+    httpResponse.SetBody(RSP_NOTFOUND);
+    httpResponse.SetCloseConnection(true);
+}
+
+void HttpDispatch::ResponseWebSocketHandshake(HttpEncoder &httpResponse, std::string key)
 {
     key += "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
     unsigned char webSockAccept[SHA_DIGEST_LENGTH + 1] = { 0 };
@@ -51,11 +56,11 @@ void HttpDispatch::ResponseWebSocketHandshake(HttpEncoder &resp, std::string key
     std::string acceptBase64 =
         base64_encode(reinterpret_cast<const char *>(webSockAccept));
 
-    resp.SetStatusCode(HttpEncoder::StatusCode_101WebSocket);
-    resp.SetStatusMessage("Switching Protocols");
-    resp.AddHeader("Upgrade", "websocket");
-    resp.AddHeader("Connection", "Upgrade");
-    resp.AddHeader("Sec-WebSocket-Accept", acceptBase64);
+    httpResponse.SetStatusCode(HttpEncoder::StatusCode_101WebSocket);
+    httpResponse.SetStatusMessage("Switching Protocols");
+    httpResponse.AddHeader("Upgrade", "websocket");
+    httpResponse.AddHeader("Connection", "Upgrade");
+    httpResponse.AddHeader("Sec-WebSocket-Accept", acceptBase64);
 }
 
 void HttpDispatch::operator()(TcpServer::ConnectorPtr connectorPtr)
@@ -64,8 +69,8 @@ void HttpDispatch::operator()(TcpServer::ConnectorPtr connectorPtr)
 
     std::string buffer;
     buffer.resize(kBufferSize);
-    HttpDecoder request;
-    WebSocketParser wsParser;
+    HttpDecoder httpRequest;
+    WebSocketDecoder wsDecoder;
     while (1)
     {
         ssize_t ret = m_connectorPtr->Read(&buffer[0], buffer.size(), kKeepAliveMs);
@@ -77,60 +82,67 @@ void HttpDispatch::operator()(TcpServer::ConnectorPtr connectorPtr)
 
         if (!m_isWebSocketReq)
         {
-            if (!ParseToDispatch(buffer.data(), ret, request))
+            if (!ParseHttpToDispatch(buffer.data(), ret, httpRequest))
                 return;
         }
         else
         {
-            if (!ProcessWebSocketData(buffer.data(), ret, wsParser))
+            if (!ProcessWebSocketData(buffer.data(), ret, wsDecoder))
                 return;
         }
     }
 }
 
-bool HttpDispatch::ParseToDispatch(const char *data, size_t len,
-                                   HttpDecoder &request)
+bool HttpDispatch::ParseHttpToDispatch(const char *data, size_t len,
+                                       HttpDecoder &httpRequest)
 {
-    if (!request.Parse(data, len))
+    if (!httpRequest.Parse(data, len))
     {
         SIMPLE_LOG("http parse error");
         return false;
     }
 
-    if (request.IsComplete())
+    if (httpRequest.IsComplete())
     {
-        HttpEncoder response(false);
-        Dispatch(request, response);
-        if (!Response(response.GetReponseString().data(),
-                      response.GetReponseString().size()))
+        HttpEncoder httpResponse(false);
+        Dispatch(httpRequest, httpResponse);
+        if (!Response(httpResponse.GetReponseString().data(),
+                      httpResponse.GetReponseString().size()))
             return false;
 
-        // Keep the websocket handshake request
-        if (!m_isWebSocketReq)
-            request.Reset();
+        httpRequest.Reset();
     }
 
     return true;
 }
 
-void HttpDispatch::Dispatch(const HttpDecoder &request, HttpEncoder &response)
+void HttpDispatch::Dispatch(const HttpDecoder &httpRequest, HttpEncoder &httpResponse)
 {
-    SIMPLE_LOG("Request: %s", request.ToString().c_str());
+    SIMPLE_LOG("Request: %s", httpRequest.ToString().c_str());
 
     std::string webSocketKey;
     if (m_enableWebSocket)
     {
-        webSocketKey = request.GetHeader("Sec-WebSocket-Key");
+        webSocketKey = httpRequest.GetHeader("Sec-WebSocket-Key");
         m_isWebSocketReq = !webSocketKey.empty();
     }
 
-    HanderMap::iterator it = m_handlers.find(request.GetUrl().c_str());
-    if (it == m_handlers.end())
-        ResponseNotFound(response);
+    HanderMap::iterator it = m_handlers.find(httpRequest.GetUrl().c_str());
+    if (it == m_handlers.end() ||
+        (m_isWebSocketReq && !it->second.webSocketHandler) ||
+        (!m_isWebSocketReq && !it->second.httpHandler))
+    {
+        ResponseHttpNotFound(httpResponse);
+    }
     else if (m_isWebSocketReq)
-        ResponseWebSocketHandshake(response, webSocketKey);
+    {
+        ResponseWebSocketHandshake(httpResponse, webSocketKey);
+        m_wsHandler = it->second.webSocketHandler;
+    }
     else
-        it->second(request, response);
+    {
+        it->second.httpHandler(httpRequest, httpResponse);
+    }
 }
 
 bool HttpDispatch::Response(const char *data, size_t len)
@@ -145,29 +157,29 @@ bool HttpDispatch::Response(const char *data, size_t len)
 }
 
 bool HttpDispatch::ProcessWebSocketData(const char *data, size_t len,
-                                        WebSocketParser &wsParser)
+                                        WebSocketDecoder &wsDecoder)
 {
-    if (!wsParser.Parse(data, len))
+    if (!wsDecoder.Parse(data, len))
     {
         SIMPLE_LOG("Web socket parse error");
         return false;
     }
 
-    if (wsParser.IsComplete())
+    if (wsDecoder.IsComplete())
     {
-        std::string data(wsParser.GetPayLoad(), wsParser.GetPayloadLen());
-        SIMPLE_LOG("WebSocket data: %s", data.c_str());
-        if (!ResponseWebSocketData(wsParser.GetPayLoad(), wsParser.GetPayloadLen()))
+        WebSocketEncoder wsEncoder(false);
+        m_wsHandler(wsDecoder, wsEncoder);
+        if (!ResponseWebSocketData(wsEncoder))
             return false;
-        wsParser.Reset();
+
+        wsDecoder.Reset();
     }
+
     return true;
 }
 
-bool HttpDispatch::ResponseWebSocketData(const char *data, size_t len)
+bool HttpDispatch::ResponseWebSocketData(WebSocketEncoder &wsEncoder)
 {
-    WebSocketEncoder wsEncoder(false, data, len);
-    wsEncoder.SetOpCode(WebSocketParser::OpCodeType_Text);
     while (!wsEncoder.IsComplete())
     {
         const std::string &frame = wsEncoder.GetFrame();
