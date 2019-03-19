@@ -19,7 +19,7 @@ void WebSocketHandle(const WebSocketDecoder &request, WebSocketEncoder &response
     return;
 }
 
-void HandleRequest(TcpServer::ConnectorPtr connector)
+void HandleRequest(TcpServer::ConnectorPtr connector, unsigned short)
 {
     HttpDispatch httpDispatch(true);
     httpDispatch.AddHandler("/", HttpHandle);
@@ -29,8 +29,10 @@ void HandleRequest(TcpServer::ConnectorPtr connector)
 
 int main()
 {
-    TcpServer httpServer("0.0.0.0", 12345);
-    httpServer.SetRequestHandler(HandleRequest);
+    TcpServer httpServer;
+    httpServer.Bind("0.0.0.0", 12345);
+    httpServer.SetRequestHandler(std::bind(
+        &HandleRequest, std::placeholders::_1, std::placeholders::_2));
     std::list<int> childIds;
     httpServer.ListenAndFork(1, childIds);
     httpServer.MonitorSlavesLoop();

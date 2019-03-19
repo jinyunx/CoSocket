@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <vector>
 
-void HandleRequest(TcpServer::ConnectorPtr connector)
+void HandleRequest(TcpServer::ConnectorPtr connector, unsigned short)
 {
     SIMPLE_LOG("My PID is: %d", getpid());
 
@@ -30,9 +30,10 @@ void HandleRequest(TcpServer::ConnectorPtr connector)
 
 int main()
 {
-    TcpServer echo("0.0.0.0", 12345);
-    echo.SetRequestHandler(std::bind(&HandleRequest,
-                                     std::placeholders::_1));
+    TcpServer echo;
+    echo.Bind("0.0.0.0", 12345);
+    echo.SetRequestHandler(std::bind(
+        &HandleRequest, std::placeholders::_1, std::placeholders::_2));
     std::list<int> childIds;
     echo.ListenAndFork(3, childIds);
     echo.MonitorSlavesLoop();

@@ -8,47 +8,48 @@
 #include <fcntl.h>
 #include <string.h>
 
-TcpServer::TcpServer(const std::string &ip,
-                     unsigned short port)
-    : m_listenFd(::socket(AF_INET,
-                          SOCK_STREAM | SOCK_NONBLOCK,
-                          IPPROTO_TCP)),
-      m_numSlaveExpected(0),
+TcpServer::TcpServer()
+    : m_numSlaveExpected(0),
       m_numSlaveRunning(0)
 {
+
+}
+
+TcpServer::~TcpServer()
+{
+    for (size_t i = 0; i < m_listenFd.size(); ++i)
+        ::close(m_listenFd[i]);
+}
+
+bool TcpServer::Bind(const std::string &ip, unsigned short port)
+{
+    int listenFd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP);
+
     int yes = 1;
-    setsockopt(m_listenFd, SOL_SOCKET, SO_REUSEADDR,
-               &yes, sizeof yes);
+    setsockopt(listenFd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes);
 
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof addr);
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr(ip.c_str());
     addr.sin_port = htons(port);
-    if (::bind(m_listenFd,
-               reinterpret_cast<struct sockaddr *>(&addr),
+    if (::bind(listenFd, reinterpret_cast<struct sockaddr *>(&addr),
                sizeof addr) < 0)
     {
         SIMPLE_LOG("bind failed, ip: %s, port: %d, error: %s",
                    ip.c_str(), port, strerror(errno));
-        exit(1);
-    }
-}
-
-TcpServer::~TcpServer()
-{
-    ::close(m_listenFd);
-}
-
-bool TcpServer::ListenAndFork(int numSlaves,
-                              std::list<int> childIds)
-{
-    if (listen(m_listenFd, SOMAXCONN) < 0)
-    {
-        SIMPLE_LOG("listen failed, error: %s",
-                   strerror(errno));
         return false;
     }
+    m_ports.push_back(port);
+    m_listenFd.push_back(listenFd);
+
+    return true;
+}
+
+bool TcpServer::ListenAndFork(int numSlaves, std::list<int> childIds)
+{
+    if (!Listen())
+        return false;
 
     if (numSlaves < 1)
         numSlaves = 1;
@@ -79,6 +80,19 @@ void TcpServer::SetRequestHandler(const HandleRequest &handler)
     m_handleRequest = handler;
 }
 
+bool TcpServer::Listen()
+{
+    for (size_t i = 0; i < m_listenFd.size(); ++i)
+    {
+        if (listen(m_listenFd[i], SOMAXCONN) < 0)
+        {
+            SIMPLE_LOG("listen failed, error: %s", strerror(errno));
+            return false;
+        }
+    }
+    return true;
+}
+
 bool TcpServer::ForkSlaves(int numSlaves, std::list<int> childIds)
 {
     for (int i = 0; i < numSlaves; ++i)
@@ -100,15 +114,19 @@ bool TcpServer::ForkSlaves(int numSlaves, std::list<int> childIds)
 void TcpServer::SlaveRun()
 {
     m_cs.reset(new CoSocket);
-    m_cs->NewCoroutine(std::bind(&TcpServer::DoAccept, this));
+    for (size_t i = 0; i < m_listenFd.size(); ++i)
+    {
+        m_cs->NewCoroutine(std::bind(
+            &TcpServer::DoAccept, this, m_listenFd[i], m_ports[i]));
+    }
     m_cs->Run();
 }
 
-void TcpServer::DoAccept()
+void TcpServer::DoAccept(int fd, unsigned short port)
 {
     while(1)
     {
-        int sockFd = m_cs->Accept(m_listenFd, 0, 0, -1);
+        int sockFd = m_cs->Accept(fd, 0, 0, -1);
         if (sockFd >= 0)
         {
             int flags = fcntl(sockFd, F_GETFL, 0);
@@ -116,15 +134,14 @@ void TcpServer::DoAccept()
 
             ConnectorPtr connector(new TcpConnector(*m_cs, sockFd));
             if (m_handleRequest)
-                SpawnOnNewRequest(connector);
+                SpawnOnNewRequest(connector, port);
             else
                 ::close(sockFd);
         }
     }
 }
 
-void TcpServer::SpawnOnNewRequest(ConnectorPtr &connector)
+void TcpServer::SpawnOnNewRequest(ConnectorPtr &connector, unsigned short port)
 {
-    m_cs->NewCoroutine(std::bind(m_handleRequest,
-                                 connector));
+    m_cs->NewCoroutine(std::bind(m_handleRequest, connector, port));
 }

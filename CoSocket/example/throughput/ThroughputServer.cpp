@@ -26,7 +26,7 @@ void WriteCoroutine(BufferQueuePtr bufferQueue, int bufferSize,
 }
 
 void RequestHandle(
-    int bufferSize, TcpServer::ConnectorPtr connector)
+    int bufferSize, TcpServer::ConnectorPtr connector, unsigned short)
 {
     BufferQueuePtr bufferQueue(new BufferQueue(connector->GetCoSocket()));
 
@@ -60,10 +60,10 @@ int main(int argc, char *argv[])
     }
     int bufferSize = atoi(argv[1]);
 
-    TcpServer tcpServer("127.0.0.1", 12345);
-    tcpServer.SetRequestHandler(
-        std::bind(&RequestHandle, bufferSize,
-                  std::placeholders::_1));
+    TcpServer tcpServer;
+    tcpServer.Bind("127.0.0.1", 12345);
+    tcpServer.SetRequestHandler(std::bind(
+        &RequestHandle, bufferSize, std::placeholders::_1, std::placeholders::_2));
     std::list<int> childIds;
     tcpServer.ListenAndFork(1, childIds);
     tcpServer.MonitorSlavesLoop();

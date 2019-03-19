@@ -32,7 +32,7 @@ void ReadServerCoroutine(TcpServer::ConnectorPtr connector,
     }
 }
 
-void HandleRequest(TcpServer::ConnectorPtr connector)
+void HandleRequest(TcpServer::ConnectorPtr connector, unsigned short)
 {
     std::shared_ptr<TcpClient> tcpClient (new TcpClient(connector->GetCoSocket()));
     int ret = tcpClient->Connect("127.0.0.1", gLocalServerPort, kTimeoutMs);
@@ -74,9 +74,10 @@ int main(int argc, char *argv[])
     gListenPort = atoi(argv[1]);
     gLocalServerPort = atoi(argv[2]);
 
-    TcpServer echo("0.0.0.0", gListenPort);
-    echo.SetRequestHandler(std::bind(&HandleRequest,
-                                     std::placeholders::_1));
+    TcpServer echo;
+    echo.Bind("0.0.0.0", gListenPort);
+    echo.SetRequestHandler(std::bind(
+        &HandleRequest, std::placeholders::_1, std::placeholders::_2));
     std::list<int> childIds;
     echo.ListenAndFork(3, childIds);
     echo.MonitorSlavesLoop();
