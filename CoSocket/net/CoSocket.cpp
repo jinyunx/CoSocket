@@ -12,7 +12,7 @@ extern "C"
 #include "coroutine/coroutine.h"
 }
 
-namespace 
+namespace
 {
 class IgnoreSigPipe
 {
@@ -416,6 +416,7 @@ void CoSocket::DeleteEvent(int fd, uint32_t events)
     int ret = 0;
     if ((ret = m_epoller->Update(fd, newEvents)) != 0)
     {
+        // FIXME: when fd close handly, fd will delete from epoll auto
         SIMPLE_LOG("Epoll update failed, fatal error: %d, exit now", ret);
         abort();
     }
@@ -464,7 +465,7 @@ void CoSocket::ResetInCoIdMap(int fd, uint32_t events)
 {
     if (events & EPOLLIN)
         m_coIdMap[fd].ResetReadCoId();
-    
+
     if (events & EPOLLOUT)
         m_coIdMap[fd].ResetWriteCoId();
 }
