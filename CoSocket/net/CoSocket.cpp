@@ -170,7 +170,7 @@ void CoSocket::Run()
     {
         RunNewCoFunc();
         RunWaitResumeCo();
-        m_epoller->Poll(m_timeoutSet->GetNeareastTimeGap());
+        m_epoller->Poll(m_timeoutSet->GetNeareastTimeGap() + 10);
         RunTimeoutCo();
     }
 }
